@@ -1,6 +1,6 @@
 compute:
   api_gateway_timeout: null
-  frontal_function_invocation_method: http-api
+  frontal_function_invocation_method: lambda-url
   frontal_function_timeout: 300
   frontal_memory: 2048
   with_queues_nb: 2

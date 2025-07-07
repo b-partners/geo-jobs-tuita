@@ -53,61 +53,24 @@ Globals:
         GEOSERVER_API_URL: !Sub '{{resolve:ssm:/geo-jobs/${Env}/geoserver/api/url}}'
     
         
-
 Parameters:
   Env:
     Type: String
 
-
 Resources:
-  FrontalServerlessHttpApi:
-    StageName: $default
-    Type: AWS::Serverless::HttpApi
-    Properties:
-      CorsConfiguration:
-        AllowMethods:
-          - GET
-          - POST
-          - PUT
-          - DELETE
-          - OPTIONS
-        AllowHeaders:
-          - "*"
-        AllowOrigins:
-          - "*"
   
-  HttpApiIntegration:
-    Type: AWS::ApiGatewayV2::Integration
-    Properties:
-      ApiId: !Ref FrontalServerlessHttpApi
-      IntegrationType: AWS_PROXY
-      IntegrationUri: !Sub "${FrontalFunction.Arn}:live"
-      PayloadFormatVersion: "1.0"
-      IntegrationMethod: ANY
-      TimeoutInMillis: 30000
-
-  DefaultRoute:
-    Type: AWS::ApiGatewayV2::Route
-    Properties:
-      ApiId: !Ref FrontalServerlessHttpApi
-      RouteKey: $default
-      Target: !Sub "integrations/${HttpApiIntegration}"
-
   FrontalFunction:
     Type: AWS::Serverless::Function
     Properties:
-      Handler: app.bpartners.geojobs.handler.ApiEventHandler::handleRequest
+      Handler: app.bpartners.geojobs.handler.LambdaHandler::handleRequest
       MemorySize: 2048
       Timeout: 300
       Role: !Sub '{{resolve:ssm:/geo-jobs-tuita/${Env}/execution/role-arn}}'
-      Events:
-        ApiCall:
-          Type: HttpApi
-          Properties:
-            Path: /{proxy+}
-            Method: ANY
-            ApiId:
-              Ref: FrontalServerlessHttpApi
+      
+      FunctionUrlConfig:
+        AuthType: NONE
+        InvokeMode: BUFFERED
+        
 
   WorkerFunction1:
     Type: AWS::Serverless::Function
@@ -144,11 +107,10 @@ Resources:
     Properties:
       Name: !Join [ '', [ /geo-jobs-tuita/, !Ref Env, /api/url ] ]
       Type: String
-      Value: !GetAtt FrontalServerlessHttpApi.ApiEndpoint
-  
+      Value: !GetAtt FrontalFunctionUrl.FunctionUrl
   
 Outputs:
   ApiUrl:
     Description: Url to access the frontal function
-    Value: !GetAtt FrontalServerlessHttpApi.ApiEndpoint
-                        
+    Value: !GetAtt FrontalFunctionUrl.FunctionUrl
+        
