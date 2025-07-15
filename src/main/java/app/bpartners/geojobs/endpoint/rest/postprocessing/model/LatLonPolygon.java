@@ -42,6 +42,13 @@ public record LatLonPolygon(Polygon polygon) {
         toPixelPolygon(polygon, tilingConf, originXY), routeTypeFrom(label), originXY, tilingConf);
   }
 
+  public TiledPolygon tiledPolygon(TilingConf tilingConf, IntXY origin) {
+    var userData = (Map<String, Object>) polygon.getUserData();
+    var label = userData == null ? DEFAULT_LABEL : userData.get("label").toString();
+    return new TiledPolygon(
+        toPixelPolygon(polygon, tilingConf, origin), routeTypeFrom(label), origin, tilingConf);
+  }
+
   private IntXY uniqueOrigin(TilingConf tilingConf) {
     var origins =
         Arrays.stream(polygon.getCoordinates())
@@ -77,7 +84,9 @@ public record LatLonPolygon(Polygon polygon) {
             .map(c -> toPixel(new LatLon(c.x, c.y), tilingConf, originTile))
             .map(pixel -> new Coordinate(pixel.x(), pixel.y()))
             .toArray(Coordinate[]::new);
-    return geometryFactory.createPolygon(pixelCoordinates);
+    var polygon = geometryFactory.createPolygon(pixelCoordinates);
+    polygon.setUserData(p.getUserData());
+    return polygon;
   }
 
   public static LatLonPolygon latLon(GeoJson.GeoFeature geoFeature) {

@@ -20,7 +20,7 @@ public class TombeTest {
    * Pathway : 20_000
    * Pool: 4_000
    */
-  private final BoundaryMerger boundaryMerger = new BoundaryMerger(4000, 20);
+  private final BoundaryMerger boundaryMerger = new BoundaryMerger(4000, 20, true);
   PolygonProvider polygonProvider = new PolygonProvider("/geometry/vgg/dijon.json");
 
   @Test

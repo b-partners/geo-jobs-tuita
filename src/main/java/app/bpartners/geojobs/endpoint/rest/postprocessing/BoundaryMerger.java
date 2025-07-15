@@ -1,5 +1,6 @@
 package app.bpartners.geojobs.endpoint.rest.postprocessing;
 
+import static app.bpartners.geojobs.endpoint.rest.postprocessing.model.TiledPolygon.toTiledPolygons;
 import static app.bpartners.geojobs.model.geometry.GeometryFactory.geometryFactory;
 import static app.bpartners.geojobs.model.geometry.route.ObjectType.*;
 import static java.lang.Runtime.getRuntime;
@@ -10,6 +11,7 @@ import app.bpartners.geojobs.endpoint.rest.postprocessing.model.LatLonPolygon;
 import app.bpartners.geojobs.endpoint.rest.postprocessing.model.TiledPolygon;
 import app.bpartners.geojobs.endpoint.rest.postprocessing.model.TilingConf;
 import app.bpartners.geojobs.model.geometry.IntXY;
+import app.bpartners.geojobs.model.geometry.VGG;
 import app.bpartners.geojobs.model.geometry.route.PrettyConf;
 import app.bpartners.geojobs.model.geometry.route.UnifiedRoute;
 import app.bpartners.geojobs.model.geometry.route.UnionConf;
@@ -35,16 +37,18 @@ public class BoundaryMerger
   private final UnionConf unionConf;
   private final NeighbourHoodHandler neighbourHoodHandler;
   private final MergeConf mergeConf;
+  private final boolean withOffset;
   private final PolygonPrettier prettier;
   private final ExecutorService executorService =
       newFixedThreadPool(Math.max(1, getRuntime().availableProcessors() / 2));
 
-  public BoundaryMerger(int minAreaThreshold, int neighbourhoodTileDistance) {
+  public BoundaryMerger(int minAreaThreshold, int neighbourhoodTileDistance, boolean withOffset) {
     this.tilingConf = TilingConf.getDefaultInstance();
     this.unionConf = UnionConf.getDefaultInstance();
     this.neighbourHoodHandler = new NeighbourHoodHandler(neighbourhoodTileDistance);
     this.mergeConf = MergeConf.getInstance(minAreaThreshold);
-    this.prettier = new PolygonPrettier(new PrettyConf(5));
+    this.prettier = new PolygonPrettier(new PrettyConf(1));
+    this.withOffset = withOffset;
   }
 
   public static TiledPolygon withOffset(TiledPolygon p, IntXY originTile, TilingConf tilingConf) {
@@ -64,14 +68,11 @@ public class BoundaryMerger
             Arrays.stream(coordinates)
                 .map(c -> new Coordinate(c.x + xFactor * imgSize, c.y + yFactor * imgSize))
                 .toArray(Coordinate[]::new));
+    polygon.setUserData(p.polygon().getUserData());
     return new TiledPolygon(polygon, p.type(), p.originTile(), p.tilingConf());
   }
 
-  private Set<LatLonPolygon> merge(Set<TiledPolygon> polygons) {
-    var origin = new ArrayList<>(polygons).getFirst().originTile();
-    var label = new ArrayList<>(polygons).getFirst().type();
-    var tiledPolygonsWithOffset =
-        polygons.stream().map(tile -> withOffset(tile, origin, tilingConf)).toList();
+  private Set<LatLonPolygon> tombMerge(Set<TiledPolygon> tiledPolygonsWithOffset, IntXY origin) {
     var result = new HashSet<TiledPolygon>();
     var alreadyUnified = new HashSet<Polygon>();
     var progress = 1;
@@ -98,6 +99,7 @@ public class BoundaryMerger
               tomb.equals(tp.type())
                   ? (Polygon) p.getEnvelope()
                   : (Polygon) md.getMinimumRectangle();
+          polygon.setUserData(p.getUserData());
           result.add(new TiledPolygon(polygon, tp.type(), tp.originTile(), tp.tilingConf()));
         }
       } else {
@@ -110,7 +112,12 @@ public class BoundaryMerger
         result.stream().map(tp -> new LatLonPolygon(tp.polygon())).collect(toSet());
     var noSuperposition = noSuperposition(latLonPolygons, mergeConf.iouAllowed());
     return noSuperposition.stream()
-        .map(ll -> new TiledPolygon(ll.polygon(), label, origin, tilingConf))
+        .map(
+            ll -> {
+              var userData = (Map<String, Object>) ll.polygon().getUserData();
+              var label = (String) userData.get("label");
+              return new TiledPolygon(ll.polygon(), routeTypeFrom(label), origin, tilingConf);
+            })
         .map(tp -> tomb.equals(tp.type()) ? resize(tp) : tp)
         .filter(Objects::nonNull)
         .map(TiledPolygon::latLonPolygon)
@@ -136,8 +143,7 @@ public class BoundaryMerger
     return (2 > dx && dy < 2) && intersection.getLength() > 100;
   }
 
-  private Set<LatLonPolygon> parallelMerge(Set<TiledPolygon> tiledPolygons) {
-    var origin = new ArrayList<>(tiledPolygons).getFirst().originTile();
+  private Set<LatLonPolygon> parallelMerge(Set<TiledPolygon> tiledPolygons, IntXY origin) {
     var polygonsByNeighbourhood = neighbourHoodHandler.aroundN(tiledPolygons);
     List<Future<Set<LatLonPolygon>>> futures;
     try {
@@ -163,11 +169,8 @@ public class BoundaryMerger
     }
   }
 
-  private Set<LatLonPolygon> merge(Set<TiledPolygon> polygons, IntXY origin) {
-    var type = polygons.iterator().next().type();
-    var tiledPolygonsWithOffset =
-        polygons.stream().map(tile -> withOffset(tile, origin, tilingConf)).toList();
-
+  private Set<LatLonPolygon> merge(Set<TiledPolygon> tiledPolygonsWithOffset, IntXY origin) {
+    var type = tiledPolygonsWithOffset.iterator().next().type();
     var result = new HashSet<TiledPolygon>();
 
     if (type.equals(green_space)) {
@@ -346,17 +349,32 @@ public class BoundaryMerger
         .collect(toSet());
   }
 
+  public Set<TiledPolygon> apply(VGG vgg) {
+    var toUnify =
+        toTiledPolygons(TilingConf.getDefaultInstance(), vgg, false).stream()
+            .filter(t -> !t.type().name().contains("revetement"))
+            .collect(toSet());
+    var origin = IntXY.defaultOrigin();
+    return parallelMerge(toUnify, origin).stream()
+        .map(latLon -> latLon.tiledPolygon(TilingConf.getDefaultInstance(), origin))
+        .collect(toSet());
+  }
+
   @Override
   public Set<LatLonPolygon> apply(Set<TiledPolygon> tiledPolygons, DetectableType detectableType) {
     if (tiledPolygons.isEmpty()) {
       return Set.of();
     }
-    if (detectableType == null) {
-      return parallelMerge(tiledPolygons);
-    }
+    var origin = new ArrayList<>(tiledPolygons).getFirst().originTile();
+    var tiledPolygonsWithOffset =
+        withOffset
+            ? tiledPolygons.stream()
+                .map(tile -> withOffset(tile, origin, tilingConf))
+                .collect(toSet())
+            : tiledPolygons;
     return switch (detectableType) {
-      case TOMBE, PASSAGE_PIETON, PISCINE -> merge(tiledPolygons);
-      default -> parallelMerge(tiledPolygons);
+      case TOMBE, PASSAGE_PIETON, PISCINE -> tombMerge(tiledPolygonsWithOffset, origin);
+      default -> parallelMerge(tiledPolygonsWithOffset, origin);
     };
   }
 }

@@ -186,7 +186,7 @@ class VGGFactoryTest {
             .collect(Collectors.toSet());
     var actual = subject.from(inverted);
 
-    // Files.write(new File("bati.json").toPath(), actual.getBytes());
+    // Files.write(new File("test.json").toPath(), actual.getBytes());
   }
 
   @Test

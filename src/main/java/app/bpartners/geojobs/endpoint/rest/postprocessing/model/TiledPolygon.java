@@ -47,9 +47,7 @@ public record TiledPolygon(
       holes[i] = geometryFactory.createLinearRing(latLonHolesCoordinates[i]);
     }
     var p = geometryFactory.createPolygon(exteriorRing, holes);
-    var userData = new HashMap<String, ObjectType>();
-    userData.put("label", type);
-    p.setUserData(userData);
+    p.setUserData(polygon.getUserData());
     return new LatLonPolygon(p);
   }
 
@@ -137,7 +135,7 @@ public record TiledPolygon(
     var originTile = new IntXY(coordsExtractor.x(filename), coordsExtractor.y(filename));
     var polygon = polygon(shapeAttribute);
     polygon.setUserData(Map.of("label", label));
-    return new TiledPolygon(polygon(shapeAttribute), routeTypeFrom(label), originTile, tilingConf);
+    return new TiledPolygon(polygon, routeTypeFrom(label), originTile, tilingConf);
   }
 
   private static Polygon polygon(app.bpartners.geojobs.endpoint.rest.model.Polygon restP) {

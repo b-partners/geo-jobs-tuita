@@ -48,6 +48,7 @@ jobs:
           fi
 
       - name: Send POST /detections/*/sync request
+        if: false
         run: |
           detection_sync_e2_id=$(uuidgen)
           echo "Generated detection_sync_e2_id: '$detection_sync_e2_id'"

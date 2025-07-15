@@ -371,7 +371,7 @@ public class VGGFactory implements Converter<Set<Polygon>, VGG> {
     return VGG.Annotation.Region.builder()
         .regionAttribute(
             VGG.Annotation.Region.RegionAttribute.builder()
-                .label(label)
+                .label(label.toUpperCase())
                 .confidence(confidence)
                 .rate_in_percent(rate)
                 .build())

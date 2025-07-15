@@ -35,20 +35,13 @@ public class UnifiedRoute {
         casted = (Polygon) buffered.getGeometryN(0);
       }
       multiPolygon = new MultiPolygonUnion().apply(multiPolygon, casted);
+      multiPolygon.setUserData(polygon.getUserData());
     }
 
     var unified = new HashSet<Polygon>();
     for (int p = 0; p < multiPolygon.getNumGeometries(); p++) {
       var unifiedPolygon = (Polygon) multiPolygon.getGeometryN(p);
-      for (Polygon polygon : toUnify) {
-        try {
-          if (unifiedPolygon.intersects(polygon)) {
-            unifiedPolygon.setUserData(polygon.getUserData());
-          }
-        } catch (Exception e) {
-          log.error(e.getMessage());
-        }
-      }
+      unifiedPolygon.setUserData(multiPolygon.getUserData());
       unified.add(unifiedPolygon);
     }
     return unified;

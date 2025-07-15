@@ -1,11 +1,17 @@
 package app.bpartners.geojobs.service.event;
 
+import static app.bpartners.geojobs.endpoint.rest.controller.mapper.FeatureMapper.toRestFeature;
+import static app.bpartners.geojobs.service.geojson.GeometryConverter.unifyMultiPolygon;
 import static java.awt.Color.WHITE;
 
 import app.bpartners.geojobs.endpoint.event.model.TileExtendedImageRequested;
+import app.bpartners.geojobs.endpoint.rest.model.MultiPolygon;
+import app.bpartners.geojobs.endpoint.rest.model.Polygon;
 import app.bpartners.geojobs.file.FileWriter;
 import app.bpartners.geojobs.file.bucket.BucketComponent;
 import app.bpartners.geojobs.model.geometry.IntXY;
+import app.bpartners.geojobs.service.DetectionBackgroundRetriever;
+import app.bpartners.geojobs.service.DetectionProvidedZoneUnifier;
 import app.bpartners.geojobs.service.FilePolygonDrawer;
 import app.bpartners.geojobs.service.GeometryPixelProjector;
 import app.bpartners.geojobs.service.geojson.GeometryConverter;
@@ -27,13 +33,49 @@ public class TileExtendedImageRequestedService implements Consumer<TileExtendedI
   private final GeometryPixelProjector geometryPixelProjector;
   private final GeometryConverter geometryConverter;
   private final FilePolygonDrawer filePolygonDrawer;
+  private final DetectionBackgroundRetriever detectionBackgroundRetriever;
+  private final DetectionProvidedZoneUnifier detectionProvidedZoneUnifier;
 
   @Override
   public void accept(TileExtendedImageRequested event) {
     var layer = event.getLayer();
     var longitude = event.getLongitude();
     var latitude = event.getLatitude();
-    var unifiedRoofMultiPolygon = event.getUnifiedRoofMultiPolygon();
+    var detection = event.getDetection();
+    var latLonBackgroundInsideProvidedZone = detectionBackgroundRetriever.apply(detection);
+    var providedZone = detectionProvidedZoneUnifier.apply(detection);
+    var unifiedRoofMultiPolygon =
+        detection.getFeatureWithDelimitations().stream()
+            .map(
+                featureWithDelimitation ->
+                    featureWithDelimitation.delimitations().stream()
+                        .map(
+                            f -> {
+                              var geometryType = toRestFeature(f).getGeometry().getActualInstance();
+                              switch (geometryType) {
+                                case Polygon polygon -> {
+                                  return geometryConverter.apply(List.of(polygon.getCoordinates()));
+                                }
+                                case MultiPolygon multiPolygon -> {
+                                  return geometryConverter.apply(multiPolygon.getCoordinates());
+                                }
+                                default ->
+                                    throw new IllegalArgumentException(
+                                        "Unsupported geometry type to extended image: "
+                                            + geometryType);
+                              }
+                            })
+                        .toList())
+            .toList()
+            .stream()
+            .flatMap(List::stream)
+            .reduce(unifyMultiPolygon())
+            .orElseThrow(
+                () ->
+                    new IllegalStateException(
+                        "Unable to unify delimitation multiPolygon for detection.id: "
+                            + detection.getId()));
+    var roofInsideProvidedZone = providedZone.intersection(unifiedRoofMultiPolygon);
     var tileCoordinates = finder.getSurroundingTiles(longitude, latitude, event.getZoom());
     var tileImagesFiles =
         tileCoordinates.stream()
@@ -42,41 +84,45 @@ public class TileExtendedImageRequestedService implements Consumer<TileExtendedI
                   var multiPolygonFromTile =
                       geometryConverter.getMultiPolygonFromTile(
                           coor.getX(), coor.getY(), coor.getZ());
-                  var intersectionBetweenTileMultiPolygonAndRoofMultiPolygon =
-                      unifiedRoofMultiPolygon.intersection(multiPolygonFromTile);
-                  var notIntersectionBetweenTileMultiPolygonAndRoofMultiPolygon =
-                      multiPolygonFromTile.difference(
-                          intersectionBetweenTileMultiPolygonAndRoofMultiPolygon);
+                  var roofInsideTileAndProvidedZone =
+                      multiPolygonFromTile.intersection(roofInsideProvidedZone);
+                  var intersectionBetweenTileMultiPolygonAndBackground =
+                      multiPolygonFromTile.intersection(latLonBackgroundInsideProvidedZone);
+                  var tileWithoutRoofInsideTileAndZone =
+                      multiPolygonFromTile.difference(roofInsideTileAndProvidedZone);
+                  List<List<List<IntXY>>> multiPolygonPixelCoordinates;
                   var fileKey =
                       layer + "/" + coor.getZ() + "/" + coor.getX() + "/" + coor.getY() + ".jpg";
-                  List<IntXY> coordinatesPixel;
-                  if (notIntersectionBetweenTileMultiPolygonAndRoofMultiPolygon.isEmpty()) {
-                    // All images must be directly blured
-                    coordinatesPixel =
-                        List.of(
-                            new IntXY(0, 0),
-                            new IntXY(0, DEFAULT_TILE_SIZE),
-                            new IntXY(DEFAULT_TILE_SIZE, DEFAULT_TILE_SIZE),
-                            new IntXY(DEFAULT_TILE_SIZE, 0));
+                  if (intersectionBetweenTileMultiPolygonAndBackground.isEmpty()) {
+                    multiPolygonPixelCoordinates = getBlurAllAreaCoordinates();
                   } else {
-                    var backgroundPixels =
-                        geometryPixelProjector.toPixels(
-                            notIntersectionBetweenTileMultiPolygonAndRoofMultiPolygon,
+                    var backgroundMultiPolygonPixels =
+                        geometryPixelProjector.toMultiPolygonPixels(
+                            tileWithoutRoofInsideTileAndZone,
                             coor.getX(),
                             coor.getY(),
                             coor.getZ(),
                             DEFAULT_TILE_SIZE);
-                    coordinatesPixel =
-                        backgroundPixels.stream()
+                    multiPolygonPixelCoordinates =
+                        backgroundMultiPolygonPixels.stream()
                             .map(
-                                coordinates ->
-                                    new IntXY(
-                                        coordinates.getFirst().intValue(),
-                                        coordinates.getLast().intValue()))
+                                polygon ->
+                                    polygon.stream()
+                                        .map(
+                                            ring ->
+                                                ring.stream()
+                                                    .map(
+                                                        coordinates ->
+                                                            new IntXY(
+                                                                coordinates.getFirst().intValue(),
+                                                                coordinates.getLast().intValue()))
+                                                    .toList())
+                                        .toList())
                             .toList();
                   }
                   var originalImage = bucketComponent.download(fileKey);
-                  return filePolygonDrawer.apply(coordinatesPixel, WHITE, originalImage);
+                  return filePolygonDrawer.apply(
+                      multiPolygonPixelCoordinates, WHITE, originalImage);
                 })
             .toList();
 
@@ -88,5 +134,15 @@ public class TileExtendedImageRequestedService implements Consumer<TileExtendedI
     bucketComponent.upload(extendedImageFile, extendedImageKey);
 
     extendedImageFile.delete();
+  }
+
+  private static List<List<List<IntXY>>> getBlurAllAreaCoordinates() {
+    return List.of(
+        List.of(
+            List.of(
+                new IntXY(0, 0),
+                new IntXY(0, DEFAULT_TILE_SIZE),
+                new IntXY(DEFAULT_TILE_SIZE, DEFAULT_TILE_SIZE),
+                new IntXY(DEFAULT_TILE_SIZE, 0))));
   }
 }

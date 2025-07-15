@@ -94,6 +94,9 @@ public enum ObjectType {
   }
 
   public static ObjectType routeTypeFrom(String label) {
+    if (label == null) {
+      return null;
+    }
     return switch (label.toLowerCase()) {
       case "road", "line", "voie_carrossable" -> road;
       case "pathway", "passage_pieton" -> pathway;

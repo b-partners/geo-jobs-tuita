@@ -9,6 +9,33 @@ import org.springframework.stereotype.Component;
 @Component
 public class GeometryPixelProjector {
 
+  public List<List<List<List<BigDecimal>>>> toMultiPolygonPixels(
+      Geometry geometry, int tileX, int tileY, int zoom, int tileSizePx) {
+    List<List<List<List<BigDecimal>>>> result = new ArrayList<>();
+    if (geometry == null || geometry.isEmpty()) {
+      return result;
+    }
+
+    switch (geometry) {
+      case Polygon polygon -> {
+        result.add(projectMultiPolygon(polygon, tileX, tileY, zoom, tileSizePx));
+      }
+      case MultiPolygon multiPolygon -> {
+        for (int i = 0; i < multiPolygon.getNumGeometries(); i++) {
+          Polygon polygon = (Polygon) multiPolygon.getGeometryN(i);
+          result.add(projectMultiPolygon(polygon, tileX, tileY, zoom, tileSizePx));
+        }
+      }
+      case Point ignored -> {
+        // rien à faire
+      }
+      default ->
+          throw new IllegalArgumentException(
+              "Unsupported geometry type: " + geometry.getGeometryType());
+    }
+    return result;
+  }
+
   public List<List<BigDecimal>> toPixels(
       Geometry geometry, int tileX, int tileY, int zoom, int tileSizePx) {
     List<List<BigDecimal>> result = new ArrayList<>();
@@ -48,7 +75,21 @@ public class GeometryPixelProjector {
     return pixelRings;
   }
 
-  // Renvoie une liste de points [x, y] pour un ring
+  private List<List<List<BigDecimal>>> projectMultiPolygon(
+      Polygon polygon, int tileX, int tileY, int zoom, int tileSizePx) {
+    List<List<List<BigDecimal>>> pixelRings = new ArrayList<>();
+
+    // Extérieur
+    pixelRings.add(projectRing(polygon.getExteriorRing(), tileX, tileY, zoom, tileSizePx));
+
+    // Intérieurs (trous)
+    for (int j = 0; j < polygon.getNumInteriorRing(); j++) {
+      pixelRings.add(projectRing(polygon.getInteriorRingN(j), tileX, tileY, zoom, tileSizePx));
+    }
+
+    return pixelRings;
+  }
+
   private List<List<BigDecimal>> projectRing(
       LineString ring, int tileX, int tileY, int zoom, int tileSizePx) {
     List<List<BigDecimal>> pixelCoords = new ArrayList<>();

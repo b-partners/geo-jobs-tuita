@@ -70,7 +70,7 @@ public class GeoJsonConversionTaskConsumer implements TaskConsumer<GeoJsonConver
         geoJson.getGeoFeatures().stream()
             .map(f -> LatLonPolygon.latLon(f).tiledPolygon(TilingConf.getDefaultInstance()))
             .collect(Collectors.toSet());
-    var merger = new BoundaryMerger(detectableType.getMinAreaThreshold(), NEIGHBOUR_SIZE);
+    var merger = new BoundaryMerger(detectableType.getMinAreaThreshold(), NEIGHBOUR_SIZE, true);
     var unified =
         merger.apply(toUnify, detectableType).stream().map(LatLonPolygon::toGeoFeature).toList();
     var geoJsonAsByte = fromFeatures(unified).getStringValue().getBytes();

@@ -3,7 +3,9 @@
   "features": [
     {
       "type": "Feature",
-      "properties": {},
+      "properties": {
+        "label": "line"
+      },
       "geometry": {
         "coordinates": [
           [
@@ -38,7 +40,9 @@
     },
     {
       "type": "Feature",
-      "properties": {},
+      "properties": {
+        "label": "line"
+      },
       "geometry": {
         "coordinates": [
           [

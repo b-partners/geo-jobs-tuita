@@ -5,7 +5,9 @@ import app.bpartners.geojobs.model.geometry.IntXY;
 import java.util.*;
 import java.util.function.Function;
 import java.util.stream.Collectors;
+import lombok.extern.slf4j.Slf4j;
 
+@Slf4j
 public class NeighbourHoodHandler
     implements Function<Set<TiledPolygon>, Map<IntXY, Set<TiledPolygon>>> {
   private final int neighbourhoodTileDistance;

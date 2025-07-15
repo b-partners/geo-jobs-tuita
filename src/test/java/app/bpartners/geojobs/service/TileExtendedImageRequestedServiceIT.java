@@ -1,15 +1,20 @@
 package app.bpartners.geojobs.service;
 
 import static app.bpartners.geojobs.repository.model.ArcgisImageZoom.HOUSES_0;
+import static java.util.UUID.randomUUID;
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
 
 import app.bpartners.geojobs.endpoint.event.model.TileExtendedImageRequested;
+import app.bpartners.geojobs.endpoint.rest.controller.mapper.FeatureMapper;
+import app.bpartners.geojobs.endpoint.rest.model.FeatureGeometry;
+import app.bpartners.geojobs.endpoint.rest.model.Polygon;
 import app.bpartners.geojobs.file.ExtensionGuesser;
 import app.bpartners.geojobs.file.FileWriter;
 import app.bpartners.geojobs.file.bucket.BucketComponent;
 import app.bpartners.geojobs.file.hash.FileHash;
+import app.bpartners.geojobs.repository.model.detection.FeatureWithDelimitation;
 import app.bpartners.geojobs.service.event.TileExtendedImageRequestedService;
 import app.bpartners.geojobs.service.geojson.GeometryConverter;
 import app.bpartners.geojobs.service.tile19.ExtenderApi;
@@ -17,11 +22,13 @@ import app.bpartners.geojobs.service.tiling.TileFinder;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.io.File;
 import java.math.BigDecimal;
+import java.util.List;
 import lombok.SneakyThrows;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.locationtech.jts.geom.MultiPolygon;
 import org.mockito.ArgumentCaptor;
+import org.mockito.MockedStatic;
 import org.springframework.core.io.ClassPathResource;
 
 class TileExtendedImageRequestedServiceIT {
@@ -32,6 +39,10 @@ class TileExtendedImageRequestedServiceIT {
   GeometryPixelProjector geometryPixelProjector = new GeometryPixelProjector();
   GeometryConverter geometryConverter = new GeometryConverter(mock());
   FilePolygonDrawer filePolygonDrawer = new FilePolygonDrawer();
+  DetectionBackgroundRetriever detectionBackgroundRetriever =
+      mock(DetectionBackgroundRetriever.class);
+  DetectionProvidedZoneUnifier detectionProvidedZoneUnifier =
+      new DetectionProvidedZoneUnifier(geometryConverter);
 
   TileExtendedImageRequestedService subject =
       new TileExtendedImageRequestedService(
@@ -41,7 +52,9 @@ class TileExtendedImageRequestedServiceIT {
           fileWriter,
           geometryPixelProjector,
           geometryConverter,
-          filePolygonDrawer);
+          filePolygonDrawer,
+          detectionBackgroundRetriever,
+          detectionProvidedZoneUnifier);
 
   @SneakyThrows
   @BeforeEach
@@ -66,31 +79,60 @@ class TileExtendedImageRequestedServiceIT {
     var longitude = BigDecimal.valueOf(-0.249317);
     var layer = "cite:PCRS";
     var zoomLevel = HOUSES_0.getZoomLevel();
+    var detectionID = randomUUID().toString();
+    var detectionMock = mock(app.bpartners.geojobs.repository.model.detection.Detection.class);
+    var repoFeatureMock = mock(app.bpartners.geojobs.repository.model.Feature.class);
     var unifiedRoofMultiPolygonMock = mock(MultiPolygon.class);
+    var featureWithDelimitation =
+        new FeatureWithDelimitation(repoFeatureMock, List.of(repoFeatureMock));
+    var geometryFactory = new org.locationtech.jts.geom.GeometryFactory().createMultiPolygon(null);
+
+    when(detectionBackgroundRetriever.apply(detectionMock)).thenReturn(geometryFactory);
     when(unifiedRoofMultiPolygonMock.intersection(any()))
         .thenAnswer(invocationOnMock -> invocationOnMock.getArgument(0));
     when(unifiedRoofMultiPolygonMock.difference(any()))
         .thenAnswer(invocationOnMock -> invocationOnMock.getArgument(0));
+    when(detectionMock.getId()).thenReturn(detectionID);
+    when(detectionMock.getFeatureWithDelimitations()).thenReturn(List.of(featureWithDelimitation));
 
-    assertDoesNotThrow(
-        () ->
-            subject.accept(
-                new TileExtendedImageRequested(
-                    longitude, latitude, zoomLevel, layer, unifiedRoofMultiPolygonMock)));
+    try (MockedStatic<FeatureMapper> mockedStatic = mockStatic(FeatureMapper.class)) {
+      var restFeatureMock = mock(app.bpartners.geojobs.endpoint.rest.model.Feature.class);
+      var geometryMock = mock(FeatureGeometry.class);
+      var polygonMock = mock(Polygon.class);
+      when(polygonMock.getCoordinates())
+          .thenReturn(
+              List.of(
+                  List.of(
+                      List.of(BigDecimal.valueOf(0), BigDecimal.valueOf(0)),
+                      List.of(BigDecimal.valueOf(0), BigDecimal.valueOf(1)),
+                      List.of(BigDecimal.valueOf(1), BigDecimal.valueOf(1)),
+                      List.of(BigDecimal.valueOf(1), BigDecimal.valueOf(0)),
+                      List.of(BigDecimal.valueOf(0), BigDecimal.valueOf(0)))));
+      when(geometryMock.getActualInstance()).thenReturn(polygonMock);
+      when(restFeatureMock.getGeometry()).thenReturn(geometryMock);
+      mockedStatic.when(() -> FeatureMapper.toRestFeature(any())).thenReturn(restFeatureMock);
 
-    var fileCaptor = ArgumentCaptor.forClass(File.class);
-    var stringCaptor = ArgumentCaptor.forClass(String.class);
-    verify(bucketComponentMock).upload(fileCaptor.capture(), stringCaptor.capture());
-    var extendedFile = fileCaptor.getValue();
-    var extendedFileKey = stringCaptor.getValue();
-    var expectedKey =
-        layer
-            + "/extended_original_"
-            + longitude.doubleValue()
-            + "_"
-            + latitude.doubleValue()
-            + ".jpg";
-    assertEquals(expectedKey, extendedFileKey);
-    assertNotNull(extendedFile);
+      assertDoesNotThrow(
+          () ->
+              subject.accept(
+                  new TileExtendedImageRequested(
+                      longitude, latitude, zoomLevel, layer, detectionMock)));
+
+      var fileCaptor = ArgumentCaptor.forClass(File.class);
+      var stringCaptor = ArgumentCaptor.forClass(String.class);
+      verify(bucketComponentMock).upload(fileCaptor.capture(), stringCaptor.capture());
+      var extendedFile = fileCaptor.getValue();
+      var extendedFileKey = stringCaptor.getValue();
+      var expectedKey =
+          layer
+              + "/extended_original_"
+              + longitude.doubleValue()
+              + "_"
+              + latitude.doubleValue()
+              + ".jpg";
+
+      assertEquals(expectedKey, extendedFileKey);
+      assertNotNull(extendedFile);
+    }
   }
 }

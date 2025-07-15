@@ -1,15 +1,12 @@
 package app.bpartners.geojobs.service;
 
-import static app.bpartners.geojobs.endpoint.rest.postprocessing.model.TiledPolygon.toTiledPolygons;
 import static app.bpartners.geojobs.file.FileWriter.createTempDirectory;
 import static app.bpartners.geojobs.service.event.GeoJsonConversionTaskConsumer.GEO_JSON_EXTENSION;
 import static app.bpartners.geojobs.service.event.GeoJsonConversionTaskConsumer.NEIGHBOUR_SIZE;
-import static java.util.stream.Collectors.toSet;
 
 import app.bpartners.geojobs.endpoint.rest.controller.mapper.FeatureMapper;
 import app.bpartners.geojobs.endpoint.rest.model.Feature;
 import app.bpartners.geojobs.endpoint.rest.postprocessing.BoundaryMerger;
-import app.bpartners.geojobs.endpoint.rest.postprocessing.model.TilingConf;
 import app.bpartners.geojobs.file.FileWriter;
 import app.bpartners.geojobs.file.bucket.BucketComponent;
 import app.bpartners.geojobs.model.geometry.VGG;
@@ -69,14 +66,17 @@ public class DetectionVGGUpdate implements BiFunction<VGG, Detection, Detection>
                     var filename = layer + "/vgg_" + longitude + "_" + latitude;
                     var fileKey = filename + ".json";
                     var vggJson = optionalVgg.get().getValue();
-                    var toUnify = toTiledPolygons(TilingConf.getDefaultInstance(), vggJson, false);
-                    var merger = new BoundaryMerger(0, NEIGHBOUR_SIZE);
-                    var unified =
-                        merger.apply(toUnify, null).stream()
-                            .map(latLon -> latLon.tiledPolygon(TilingConf.getDefaultInstance()))
-                            .collect(toSet());
+                    var properties = vggJson.values().stream().toList().getFirst().getProperties();
+                    var merger = new BoundaryMerger(0, NEIGHBOUR_SIZE, false);
+                    var unified = merger.apply(vggJson);
                     var unifiedVgg = vggFactory.from(unified);
-                    var vggAsByte = unifiedVgg.getBytes();
+                    var updatedVgg = new VGG();
+                    unifiedVgg.forEach(
+                        (k, v) -> {
+                          v.setProperties(properties);
+                          updatedVgg.put(k, v);
+                        });
+                    var vggAsByte = updatedVgg.getBytes();
                     var vggAsFile = fileWriter.write(vggAsByte, createTempDirectory(), filename);
                     bucketComponent.upload(vggAsFile, fileKey);
 

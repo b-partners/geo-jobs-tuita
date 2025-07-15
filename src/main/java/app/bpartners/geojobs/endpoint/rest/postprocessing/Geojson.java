@@ -96,7 +96,7 @@ public class Geojson {
     List<Map<String, Object>> features = new ArrayList<>();
 
     for (Polygon polygon : wktPolygons) {
-      var userData = (HashMap<String, String>) polygon.getUserData();
+      var userData = (Map<String, String>) polygon.getUserData();
       // Convert JTS Polygon to GeoJSON format
       List<List<List<Double>>> coordinates = new ArrayList<>();
       List<List<Double>> outerRing = new ArrayList<>();

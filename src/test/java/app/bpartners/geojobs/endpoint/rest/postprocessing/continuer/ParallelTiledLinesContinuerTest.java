@@ -14,6 +14,7 @@ import app.bpartners.geojobs.model.geometry.route.ContinuationConf;
 import app.bpartners.geojobs.model.geometry.route.PrettyConf;
 import app.bpartners.geojobs.model.geometry.route.RoutesContinuationConf;
 import app.bpartners.geojobs.model.geometry.route.UnionConf;
+import java.util.Map;
 import java.util.Set;
 import org.junit.jupiter.api.Test;
 
@@ -24,16 +25,14 @@ public class ParallelTiledLinesContinuerTest {
 
   @Test
   void parallel_continuation_on_dijon() {
+    var polygon = geometryFactory.createPolygon();
+    polygon.setUserData(Map.of("label", "line"));
     var polygons =
         Set.of(
-            new TiledPolygon(
-                geometryFactory.createPolygon(), road, new IntXY(539081, 367698), tilingConf),
-            new TiledPolygon(
-                geometryFactory.createPolygon(), road, new IntXY(539081, 367699), tilingConf),
-            new TiledPolygon(
-                geometryFactory.createPolygon(), pathway, new IntXY(539092, 367699), tilingConf),
-            new TiledPolygon(
-                geometryFactory.createPolygon(), road, new IntXY(539092, 367700), tilingConf));
+            new TiledPolygon(polygon, road, new IntXY(539081, 367698), tilingConf),
+            new TiledPolygon(polygon, road, new IntXY(539081, 367699), tilingConf),
+            new TiledPolygon(polygon, pathway, new IntXY(539092, 367699), tilingConf),
+            new TiledPolygon(polygon, road, new IntXY(539092, 367700), tilingConf));
 
     var actual = subject.apply(polygons);
 

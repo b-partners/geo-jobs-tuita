@@ -17,11 +17,11 @@ import org.springframework.stereotype.Component;
 
 @Slf4j
 @Component
-public class FilePolygonDrawer implements TriFunction<List<IntXY>, Color, File, File> {
+public class FilePolygonDrawer implements TriFunction<List<List<List<IntXY>>>, Color, File, File> {
 
   @SneakyThrows
   @Override
-  public File apply(List<IntXY> pixels, Color color, File originalFile) {
+  public File apply(List<List<List<IntXY>>> multiPolygonPixels, Color color, File originalFile) {
     BufferedImage originalImage = ImageIO.read(originalFile);
     BufferedImage imageWithAlpha =
         new BufferedImage(
@@ -33,13 +33,22 @@ public class FilePolygonDrawer implements TriFunction<List<IntXY>, Color, File, 
     var opacity = 0.85f;
     g2d.setComposite(AlphaComposite.getInstance(SRC_OVER, opacity));
 
-    if (!pixels.isEmpty()) {
-      int[] xPoints = pixels.stream().mapToInt(IntXY::x).toArray();
-      int[] yPoints = pixels.stream().mapToInt(IntXY::y).toArray();
-      if (xPoints.length > 2) {
-        g2d.fillPolygon(xPoints, yPoints, xPoints.length);
-      }
+    if (!multiPolygonPixels.isEmpty()) {
+      multiPolygonPixels.forEach(
+          polygon -> {
+            if (!polygon.isEmpty()) {
+              polygon.forEach(
+                  ring -> {
+                    int[] xPoints = ring.stream().mapToInt(IntXY::x).toArray();
+                    int[] yPoints = ring.stream().mapToInt(IntXY::y).toArray();
+                    if (xPoints.length > 2) {
+                      g2d.fillPolygon(xPoints, yPoints, xPoints.length);
+                    }
+                  });
+            }
+          });
     }
+
     g2d.dispose();
     File tmpPngFile =
         File.createTempFile(

@@ -5,6 +5,7 @@ import static app.bpartners.geojobs.service.geojson.GeometryConverter.unifyMulti
 import app.bpartners.geojobs.endpoint.rest.model.*;
 import app.bpartners.geojobs.model.exception.NotImplementedException;
 import app.bpartners.geojobs.service.geojson.GeometryConverter;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
 import java.util.function.Consumer;
@@ -48,14 +49,32 @@ public class DetectionAreaValidator implements Consumer<Detection> {
       log.warn("No unified geometry found from provided geo-json: {}", geoJsonZone);
       return;
     }
-    var actualArea = geometrySquareMeterArea.apply(unifiedProvidedPolygon.get());
-    if (INDRE_ET_LOIRE_2024_5_CM.equals(layer) && actualArea > 1_000_000.0) {
-      throw new NotImplementedException(
-          "Provided multiPolygon must be under 1 kilometers square (or 1 000 000 meters square) for"
-              + " zone inside layers "
-              + INDRE_ET_LOIRE_2024_5_CM
-              + " for now, actual area: "
-              + actualArea);
+    var unifiedMultiPolygon = unifiedProvidedPolygon.get();
+    if (INDRE_ET_LOIRE_2024_5_CM.equals(layer)) {
+      var polygonsOverLimit = new ArrayList<GeometryArea>();
+      int numGeometries = unifiedMultiPolygon.getNumGeometries();
+      for (int i = 0; i < numGeometries; i++) {
+        var polygonGeometry = unifiedMultiPolygon.getGeometryN(i);
+        var polygonArea = geometrySquareMeterArea.apply(polygonGeometry);
+        if (polygonArea > 12_000) {
+          polygonsOverLimit.add(new GeometryArea(polygonGeometry, polygonArea));
+        }
+      }
+      if (!polygonsOverLimit.isEmpty()) {
+        throw new NotImplementedException(
+            "Provided zone contains polygons over 12_000 square metre : "
+                + polygonsOverLimit.stream()
+                    .map(
+                        geometryArea ->
+                            "{geometry: "
+                                + geometryConverter.writeGeometryAsString(geometryArea.geometry)
+                                + ", area_in_square_metre: "
+                                + geometryArea.area
+                                + "}")
+                    .toList());
+      }
     }
   }
+
+  private record GeometryArea(org.locationtech.jts.geom.Geometry geometry, double area) {}
 }
