@@ -57,3 +57,17 @@ jobs:
           else
             echo "No messages found. Do not redrive."
           fi
+
+
+      - name: Redrive DLQ 3
+        run: |
+          RESPONSE=$(aws sqs receive-message \
+          --queue-url https://sqs.eu-west-3.amazonaws.com/${{ env.ACCOUNT_ID }}/${{ env.ENV }}-3-geo-jobs-dl)
+
+          if [[ -n "$RESPONSE" && $(echo "$RESPONSE" | jq '.Messages | length > 0' -e) ]]; then
+            echo "Messages found. Starting to redrive them to their source."
+            aws sqs start-message-move-task \
+            --source-arn arn:aws:sqs:eu-west-3:${{ env.ACCOUNT_ID }}:${{ env.ENV }}-3-geo-jobs-dl
+          else
+            echo "No messages found. Do not redrive."
+          fi

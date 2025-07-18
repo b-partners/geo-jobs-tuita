@@ -32,19 +32,19 @@ import org.springframework.web.util.UriComponentsBuilder;
 public class HttpApiTileObjectDetector implements TileObjectDetector {
   private final ObjectMapper om;
   private final CustomBucketComponent bucketComponent;
-  private final List<DetectionUrl> tileDetectionApiUrls;
   private final String defaultDetectionApiUrl;
+  private final TileObjectDetectorConf tileObjectDetectorConf;
 
   @SneakyThrows
   public HttpApiTileObjectDetector(
       ObjectMapper om,
       CustomBucketComponent bucketComponent,
-      @Value("${tile.detection.api.urls}") String tileDetectionApiUrls,
-      @Value("${tile.detection.api.url}") String defaultApiUrl) {
+      @Value("${tile.detection.api.url}") String defaultApiUrl,
+      TileObjectDetectorConf tileObjectDetectorConf) {
     this.om = om;
     this.bucketComponent = bucketComponent;
     this.defaultDetectionApiUrl = defaultApiUrl;
-    this.tileDetectionApiUrls = om.readValue(tileDetectionApiUrls, new TypeReference<>() {});
+    this.tileObjectDetectorConf = tileObjectDetectorConf;
   }
 
   @SneakyThrows
@@ -90,11 +90,14 @@ public class HttpApiTileObjectDetector implements TileObjectDetector {
     throw new ApiException(SERVER_EXCEPTION, "Server error");
   }
 
+  @SneakyThrows
   private String getApiUrl(List<DetectableObjectConfiguration> objectConfigurations) {
+    List<TileDetectorUrl> tileDetectionApiUrls =
+        om.readValue(tileObjectDetectorConf.getTileDetectionApiUrls(), new TypeReference<>() {});
     for (var conf : objectConfigurations) {
       for (var url : tileDetectionApiUrls) {
-        if (conf.getObjectType().equals(url.objectType)) {
-          return url.url;
+        if (conf.getObjectType().equals(url.getObjectType())) {
+          return url.getUrl();
         }
       }
     }

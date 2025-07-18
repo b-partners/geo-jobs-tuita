@@ -19,9 +19,11 @@ import app.bpartners.geojobs.repository.model.detection.DetectableObjectConfigur
 import app.bpartners.geojobs.repository.model.detection.ParcelDetectionTask;
 import app.bpartners.geojobs.repository.model.tiling.Tile;
 import app.bpartners.geojobs.service.detection.TileObjectDetector;
+import app.bpartners.geojobs.service.detection.TileObjectDetectorConf;
 import java.io.File;
 import java.time.Instant;
 import java.util.List;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -41,6 +43,12 @@ class ObjectsDetectorIT extends FacadeIT {
   @MockBean BucketConf bucketConf;
   @MockBean CustomBucketComponent bucketComponent;
   @Autowired TileObjectDetector objectsDetector;
+  @MockBean TileObjectDetectorConf tileObjectDetectorConfMock;
+
+  @BeforeEach
+  void setUp() {
+    when(tileObjectDetectorConfMock.getTileDetectionApiUrls()).thenReturn("[]");
+  }
 
   @Test
   void process_detection_ok() {

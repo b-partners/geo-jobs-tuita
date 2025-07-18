@@ -3,17 +3,20 @@ compute:
   frontal_function_invocation_method: lambda-url
   frontal_function_timeout: 300
   frontal_memory: 2048
-  with_queues_nb: 2
+  with_queues_nb: 3
   worker_1_batch: 5
   worker_1_memory: 1024
   worker_2_batch: 5
   worker_2_memory: 1024
+  worker_3_memory: 1024
   worker_function_1_timeout: 900
   worker_function_2_timeout: 900
+  worker_function_3_timeout: 900
 concurrency:
   frontal_reserved_concurrent_executions_nb: null
   worker_1_reserved_concurrent_executions_nb: 2
   worker_2_reserved_concurrent_executions_nb: 2
+  worker_3_reserved_concurrent_executions_nb: 2
 database:
   with_database: None
 emailing:

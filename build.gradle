@@ -187,6 +187,7 @@ dependencies {
     implementation 'software.amazon.awssdk.crt:aws-crt:0.28.12'
     implementation 'software.amazon.awssdk:ses:2.21.40'
     implementation 'software.amazon.awssdk:core:2.21.40'
+    implementation 'software.amazon.awssdk:ssm:2.21.40'
 
     implementation 'jakarta.mail:jakarta.mail-api:2.1.2'
     implementation 'jakarta.activation:jakarta.activation-api:2.1.2'

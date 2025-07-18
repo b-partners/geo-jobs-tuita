@@ -26,6 +26,16 @@ Resources:
         maxReceiveCount: 9
       SqsManagedSseEnabled: false
 
+  MailboxQueue3:
+    Type: AWS::SQS::Queue
+    Properties:
+      QueueName: !Join [ '' , [ !Ref Env , -3-geo-jobs-tuita ] ]
+      VisibilityTimeout: 901 #note(sqs-visibility): WorkerFunction2.Timeout + 1
+      RedrivePolicy:
+        deadLetterTargetArn: !GetAtt DeadLetterQueue3.Arn
+        maxReceiveCount: 9
+      SqsManagedSseEnabled: false
+
   DeadLetterQueue1:
     Type: AWS::SQS::Queue
     Properties:
@@ -38,12 +48,19 @@ Resources:
       QueueName: !Join [ '' , [ !Ref Env , -2-geo-jobs-tuita-dl ] ]
       SqsManagedSseEnabled: false
 
+  DeadLetterQueue3:
+    Type: AWS::SQS::Queue
+    Properties:
+      QueueName: !Join [ '' , [ !Ref Env , -3-geo-jobs-tuita-dl ] ]
+      SqsManagedSseEnabled: false
+
   MailboxQueuePolicy:
     Type: AWS::SQS::QueuePolicy
     Properties:
       Queues:
         - !Ref MailboxQueue1
         - !Ref MailboxQueue2
+        - !Ref MailboxQueue3
       PolicyDocument:
         Version: "2008-10-17"
         Id: "MailboxQueue_Policy"
@@ -59,6 +76,13 @@ Resources:
               - "SQS:*"
             Effect: "Allow"
             Resource: !GetAtt MailboxQueue2.Arn
+            Principal:
+              AWS:
+                - !Sub arn:aws:iam::${AWS::AccountId}:root
+          - Action:
+              - "SQS:*"
+            Effect: "Allow"
+            Resource: !GetAtt MailboxQueue3.Arn
             Principal:
               AWS:
                 - !Sub arn:aws:iam::${AWS::AccountId}:root
@@ -82,6 +106,16 @@ Resources:
             Condition:
               ArnEquals:
                 AWS:SourceArn: !GetAtt EventBridgeRule2.Arn
+          - Action:
+              - "SQS:SendMessage"
+            Effect: "Allow"
+            Resource: !GetAtt MailboxQueue3.Arn
+            Principal:
+              Service:
+                - "events.amazonaws.com"
+            Condition:
+              ArnEquals:
+                AWS:SourceArn: !GetAtt EventBridgeRule3.Arn
 
   DeadLetterQueuePolicy:
     Type: AWS::SQS::QueuePolicy
@@ -89,6 +123,7 @@ Resources:
       Queues:
         - !Ref DeadLetterQueue1
         - !Ref DeadLetterQueue2
+        - !Ref DeadLetterQueue3
       PolicyDocument:
         Version: "2008-10-17"
         Id: "DeadLetterQueue_Policy"
@@ -104,6 +139,13 @@ Resources:
               - "SQS:*"
             Effect: "Allow"
             Resource: !GetAtt DeadLetterQueue2.Arn
+            Principal:
+              AWS:
+                - !Sub arn:aws:iam::${AWS::AccountId}:root
+          - Action:
+              - "SQS:*"
+            Effect: "Allow"
+            Resource: !GetAtt DeadLetterQueue3.Arn
             Principal:
               AWS:
                 - !Sub arn:aws:iam::${AWS::AccountId}:root
@@ -136,6 +178,20 @@ Resources:
       Type: String
       Value: !GetAtt MailboxQueue2.Arn
 
+  MailboxQueue3SSM:
+    Type: AWS::SSM::Parameter
+    Properties:
+      Name: !Join [ '' , [ /geo-jobs-tuita/ , !Ref Env , /3/sqs/mailbox-queue-url ] ]
+      Type: String
+      Value: !Ref MailboxQueue3
+
+  MailboxQueue3SSMArn:
+    Type: AWS::SSM::Parameter
+    Properties:
+      Name: !Join [ '' , [ /geo-jobs-tuita/ , !Ref Env , /3/sqs/mailbox-queue-arn ] ]
+      Type: String
+      Value: !GetAtt MailboxQueue3.Arn
+
   DeadLetterQueue1SSM:
     Type: AWS::SSM::Parameter
     Properties:
@@ -161,6 +217,20 @@ Resources:
     Type: AWS::SSM::Parameter
     Properties:
       Name: !Join [ '' , [ /geo-jobs-tuita/ , !Ref Env , /2/sqs/dead-letter-queue-arn ] ]
+      Type: String
+      Value: !GetAtt DeadLetterQueue1.Arn
+
+  DeadLetterQueue3SSM:
+    Type: AWS::SSM::Parameter
+    Properties:
+      Name: !Join [ '' , [ /geo-jobs-tuita/ , !Ref Env , /3/sqs/dead-letter-queue-url ] ]
+      Type: String
+      Value: !Ref DeadLetterQueue1
+
+  DeadLetterQueue3ArnSSM:
+    Type: AWS::SSM::Parameter
+    Properties:
+      Name: !Join [ '' , [ /geo-jobs-tuita/ , !Ref Env , /3/sqs/dead-letter-queue-arn ] ]
       Type: String
       Value: !GetAtt DeadLetterQueue1.Arn
 
@@ -199,6 +269,18 @@ Resources:
         - Arn: !GetAtt MailboxQueue2.Arn
           Id: !Join [ '', [ !Ref Env, -2-geo-jobs-tuita, -api-mailbox ] ]
 
+  EventBridgeRule3:
+    Type: AWS::Events::Rule
+    Properties:
+      Name: !Join [ '', [ !Ref Env, -3-geo-jobs-tuita, -from-api-to-api ] ]
+      EventBusName: !GetAtt EventBridgeBus.Name
+      EventPattern:
+        source:
+          - app.bpartners.geojobs.event3
+      Targets:
+        - Arn: !GetAtt MailboxQueue3.Arn
+          Id: !Join [ '', [ !Ref Env, -3-geo-jobs-tuita, -api-mailbox ] ]
+
   EventBridgeBusNameSSM:
     Type: AWS::SSM::Parameter
     Properties:
@@ -230,6 +312,14 @@ Outputs:
     Value: !Ref DeadLetterQueue2SSM
   DeadLetterQueue2Arn:
     Value: !Ref DeadLetterQueue2ArnSSM
+  MailboxQueue3URL:
+    Value: !Ref MailboxQueue3SSM
+  MailboxQueue3Arn:
+    Value: !Ref MailboxQueue3SSMArn
+  DeadLetterQueue3URL:
+    Value: !Ref DeadLetterQueue3SSM
+  DeadLetterQueue3Arn:
+    Value: !Ref DeadLetterQueue3ArnSSM
   EventBridgeBusName:
     Value: !Ref EventBridgeBusNameSSM
   EventBridgeArnName:
