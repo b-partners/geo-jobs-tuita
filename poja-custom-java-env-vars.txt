@@ -1,5 +1,4 @@
 TILES_DOWNLOADER_API_URL: !Sub '{{resolve:ssm:/geo-jobs/${Env}/tiles/downloader/url}}'
-TILE_DETECTION_API_URLS: !Sub '{{resolve:ssm:/geo-jobs/${Env}/tiles/detection/urls}}'
 ADMIN_API_KEY: !Sub '{{resolve:ssm:/bpartners-geo-jobs/${Env}/admin/api-key}}'
 ANNOTATOR_API_URL: !Sub '{{resolve:ssm:/geo-jobs/${Env}/annotator/url}}'
 ANNOTATOR_API_KEY: !Sub '{{resolve:ssm:/geo-jobs/${Env}/annotator/api/key}}'

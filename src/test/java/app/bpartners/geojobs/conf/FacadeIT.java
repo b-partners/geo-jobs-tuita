@@ -16,7 +16,6 @@ import org.springframework.test.context.DynamicPropertySource;
 @SpringBootTest(webEnvironment = RANDOM_PORT)
 @Slf4j
 public class FacadeIT {
-
   private static final PostgresConf POSTGRES_CONF = new PostgresConf();
 
   @BeforeAll

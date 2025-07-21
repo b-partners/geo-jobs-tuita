@@ -18,7 +18,6 @@ public class EnvConf {
     registry.add(
         "tile.detection.api.url",
         () -> "https://jgzoqzwhm6r3oxcovqidd5onvm0sipnc.lambda-url.eu-west-3.on.aws/");
-    registry.add("tile.detection.api.urls", () -> "[]");
     registry.add("admin.api.key", () -> ADMIN_API_KEY);
     registry.add("annotator.api.key", () -> ADMIN_API_KEY);
     registry.add(

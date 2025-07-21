@@ -40,7 +40,18 @@ public abstract class PojaEvent implements Serializable {
   }
 
   public String getEventSource() {
-    if (getEventStack().equals(EVENT_STACK_1)) return "app.bpartners.geojobs.event1";
-    return "app.bpartners.geojobs.event2";
+    var eventStack = getEventStack();
+    switch (eventStack) {
+      case EVENT_STACK_1 -> {
+        return "app.bpartners.geojobs.event1";
+      }
+      case EVENT_STACK_2 -> {
+        return "app.bpartners.geojobs.event2";
+      }
+      case EVENT_STACK_3 -> {
+        return "app.bpartners.geojobs.event3";
+      }
+    }
+    throw new IllegalStateException("Unknown event stack " + eventStack);
   }
 }
