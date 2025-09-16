@@ -4,6 +4,7 @@ import lombok.Getter;
 
 @Getter
 public enum DetectableType {
+  ROAD(0), // TODO
   TOITURE_REVETEMENT(0),
   PANNEAU_PHOTOVOLTAIQUE(0),
   PISCINE(4000),

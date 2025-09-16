@@ -10,7 +10,6 @@ import app.bpartners.geojobs.endpoint.event.EventProducer;
 import app.bpartners.geojobs.endpoint.event.model.DetectionVGGRequested;
 import app.bpartners.geojobs.endpoint.event.model.ExtendedImageWithDetectedObjectRequested;
 import app.bpartners.geojobs.endpoint.rest.model.*;
-import app.bpartners.geojobs.file.FileWriter;
 import app.bpartners.geojobs.file.bucket.BucketComponent;
 import app.bpartners.geojobs.model.geometry.PolygonObjectTypeSerializable;
 import app.bpartners.geojobs.model.geometry.TiledPixelPolygonSerializable;
@@ -23,7 +22,6 @@ import app.bpartners.geojobs.repository.model.tiling.Tile;
 import app.bpartners.geojobs.service.DetectedImageDraw;
 import app.bpartners.geojobs.service.GeometryTiledValidator;
 import app.bpartners.geojobs.service.geojson.GeometryConverter;
-import app.bpartners.geojobs.service.tile19.ExtenderApi;
 import app.bpartners.geojobs.service.tiling.TileFinder;
 import app.bpartners.geojobs.service.tiling.TiledPixelPolygonFilter;
 import java.math.BigDecimal;
@@ -40,8 +38,6 @@ class ExtendedImageWithDetectedObjectRequestedServiceTest {
   MachineDetectedTileRepository detectedTileRepositoryMock = mock();
   BucketComponent bucketComponentMock = mock();
   DetectedImageDraw detectedImageDrawMock = mock();
-  ExtenderApi extenderApiMock = mock();
-  FileWriter fileWriterMock = mock();
   DetectionRepository detectionRepositoryMock = mock();
   GeometryConverter geometryConverterMock = mock();
   EventProducer eventProducerMock = mock();
@@ -53,8 +49,6 @@ class ExtendedImageWithDetectedObjectRequestedServiceTest {
           detectedTileRepositoryMock,
           bucketComponentMock,
           detectedImageDrawMock,
-          extenderApiMock,
-          fileWriterMock,
           detectionRepositoryMock,
           geometryConverterMock,
           eventProducerMock,

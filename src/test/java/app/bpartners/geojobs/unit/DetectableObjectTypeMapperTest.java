@@ -56,7 +56,6 @@ class DetectableObjectTypeMapperTest {
 
     var expected =
         List.of(
-            ARBRE,
             TOITURE_REVETEMENT,
             PANNEAU_PHOTOVOLTAIQUE,
             MOISISSURE_NOIRCIE,
@@ -66,13 +65,12 @@ class DetectableObjectTypeMapperTest {
             USURE_IMPORTANTE,
             USURE_LEGER,
             USURE,
-            FISSURE_CASSURE,
             OBSTACLE,
             CHEMINEE,
             HUMIDITE_INTENSE,
             HUMIDITE_CLAIR,
             HUMIDITE,
-            RISQUE_FEU);
+            VELUX);
     assertEquals(expected, actual);
   }
 
@@ -290,10 +288,7 @@ class DetectableObjectTypeMapperTest {
                         objectConfiguration.getObjectType(),
                         objectConfiguration.getMinConfidenceForDetection()))
             .toList();
-    assertEquals(17, detectableObjectWithReferenceConfidences.size());
-    assertTrue(
-        detectableObjectWithReferenceConfidences.contains(
-            new DetectableObjectWithReferenceConfidence(DetectableType.ARBRE, 0.2504)));
+    assertEquals(15, detectableObjectWithReferenceConfidences.size());
     assertTrue(
         detectableObjectWithReferenceConfidences.contains(
             new DetectableObjectWithReferenceConfidence(DetectableType.TOITURE_REVETEMENT, 0.252)));
@@ -309,9 +304,6 @@ class DetectableObjectTypeMapperTest {
             new DetectableObjectWithReferenceConfidence(DetectableType.USURE_IMPORTANTE, 0.0)));
     assertTrue(
         detectableObjectWithReferenceConfidences.contains(
-            new DetectableObjectWithReferenceConfidence(DetectableType.FISSURE_CASSURE, 0.0)));
-    assertTrue(
-        detectableObjectWithReferenceConfidences.contains(
             new DetectableObjectWithReferenceConfidence(DetectableType.OBSTACLE, 0.0)));
     assertTrue(
         detectableObjectWithReferenceConfidences.contains(
@@ -319,9 +311,6 @@ class DetectableObjectTypeMapperTest {
     assertTrue(
         detectableObjectWithReferenceConfidences.contains(
             new DetectableObjectWithReferenceConfidence(DetectableType.HUMIDITE_INTENSE, 0.0)));
-    assertTrue(
-        detectableObjectWithReferenceConfidences.contains(
-            new DetectableObjectWithReferenceConfidence(DetectableType.RISQUE_FEU, 0.0)));
   }
 
   @Test

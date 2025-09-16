@@ -7,6 +7,8 @@ public class EnvConf {
   public static final String ANNOTATOR_USER_ID_FOR_GEOJOBS = "geo-jobs_user_id";
   public static final String ADMIN_EMAIL = "admin@gmail.com";
   public static final String ADMIN_API_KEY = "the-admin-api-key";
+  public static final String LIDAR_API_URL =
+      "https://data.geopf.fr/private/wfs/?apikey=interface_catalogue";
 
   void configureProperties(DynamicPropertyRegistry registry) {
     registry.add("annotator.api.url", () -> "http://dummy.com");
@@ -34,5 +36,6 @@ public class EnvConf {
     registry.add("readme.webhook.secret", () -> "the-readme-webhook-secret");
     registry.add("bpartners.api.url", () -> "http://dummy.com");
     registry.add("geoserver.api.url", () -> "http://dummy-geoserver.com");
+    registry.add("ign.lidar.api.url", () -> LIDAR_API_URL);
   }
 }

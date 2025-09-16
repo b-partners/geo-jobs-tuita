@@ -14,7 +14,7 @@ public class FeatureSurfaceService {
   private final FeatureMapper featureMapper;
 
   public double getAreaValue(Feature feature) {
-    var areaValue = AREA_COMPUTER.apply(featureMapper.toDomain(feature));
+    var areaValue = AREA_COMPUTER.apply(featureMapper.toDomainGeometry(feature));
     return areaValue.getValue();
   }
 

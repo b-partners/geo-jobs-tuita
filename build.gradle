@@ -99,6 +99,8 @@ test {
     maxParallelForks = Runtime.runtime.availableProcessors().intdiv(2) ?: 1
     useJUnitPlatform()
     finalizedBy jacocoTestCoverageVerification
+    minHeapSize = "8g"
+    maxHeapSize = "10g"
 }
 
 jacocoTestCoverageVerification {
@@ -224,6 +226,7 @@ implementation 'org.geotools:gt-geojson:31.2'
 implementation 'org.geotools:gt-main:31.2'
 implementation 'org.geotools:gt-referencing:31.2'
 implementation 'org.geotools:gt-epsg-hsql:31.2'
-    
+    implementation 'com.github.mreutegg:laszip4j:0.20'
+
 
 }

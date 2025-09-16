@@ -10,7 +10,7 @@ import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 
 @Disabled
-public class ParcelContentTest {
+class ParcelContentTest {
   ObjectMapper om = new ObjectMapper().findAndRegisterModules();
 
   String parcelContentAsString =
@@ -181,7 +181,7 @@ public class ParcelContentTest {
           + "    \"styles\": \"\",\n"
           + "    \"request\": \"GetMap\",\n"
           + "    \"service\": \"WMS\",\n"
-          + "    \"version\": \"1.0.0\",\n"
+          + "    \"version\": \"1.3.0\",\n"
           + "    \"transparent\": true\n"
           + "  }\n"
           + "}";

@@ -34,8 +34,10 @@ import java.util.List;
 import java.util.stream.IntStream;
 import lombok.AllArgsConstructor;
 import lombok.SneakyThrows;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 
+@Slf4j
 @Component
 @AllArgsConstructor
 public class DetectionMapper {
@@ -145,21 +147,16 @@ public class DetectionMapper {
 
   private DetectableType toDetectableType(String label) {
     return switch (label.toUpperCase()) {
-      case ROOF_STRING_VALUE,
-              ROOF_ARDOISE_STRING_VALUE,
-              ROOF_AUTRES_STRING_VALUE,
-              ROOF_TUILES_STRING_VALUE,
-              TOITURE_REVETEMENT_STRING_VALUE ->
-          DetectableType.TOITURE_REVETEMENT;
+      case ROOF_STRING_VALUE, TOITURE_REVETEMENT_STRING_VALUE -> DetectableType.TOITURE_REVETEMENT;
       case SOLAR_PANEL_STRING_VALUE, PV_STRING_VALUE, PANNEAU_PHOTOVOLTAIQUE_STRING_VALUE ->
           DetectableType.PANNEAU_PHOTOVOLTAIQUE;
       case TREE_STRING_VALUE, ARBRE_STRING_VALUE -> DetectableType.ARBRE;
       case PATHWAY_STRING_VALUE, PASSAGE_PIETON_STRING_VALUE -> DetectableType.PASSAGE_PIETON;
       case POOL_STRING_VALUE, PISCINE_STRING_VALUE -> DetectableType.PISCINE;
-      case BATI_TUILES_STRING_VALUE -> DetectableType.BATI_TUILES;
+      case BATI_TUILES_STRING_VALUE, ROOF_TUILES_STRING_VALUE -> DetectableType.BATI_TUILES;
       case BATI_BETON_STRING_VALUE -> DetectableType.BATI_BETON;
-      case BATI_ARDOISE_STRING_VALUE -> DetectableType.BATI_ARDOISE;
-      case BATI_AUTRES_STRING_VALUE -> DetectableType.BATI_AUTRES;
+      case BATI_ARDOISE_STRING_VALUE, ROOF_ARDOISE_STRING_VALUE -> DetectableType.BATI_ARDOISE;
+      case BATI_AUTRES_STRING_VALUE, ROOF_AUTRES_STRING_VALUE -> DetectableType.BATI_AUTRES;
       case LINE_STRING_VALUE -> DetectableType.LINE;
       case TROTTOIR_STRING_VALUE -> DetectableType.TROTTOIR;
       case PARKING_STRING_VALUE -> DetectableType.PARKING;
@@ -185,8 +182,10 @@ public class DetectionMapper {
   private app.bpartners.geojobs.repository.model.Feature toFeature(
       DetectionResponse.ImageData.ShapeAttributes shapeAttributes, int zoom) {
     List<List<BigDecimal>> coordinates = new ArrayList<>();
-    var allX = shapeAttributes.getAllPointsX();
-    var allY = shapeAttributes.getAllPointsY();
+    var allX =
+        shapeAttributes.getAllPointsX().stream().map(x -> new BigDecimal(x.intValue())).toList();
+    var allY =
+        shapeAttributes.getAllPointsY().stream().map(y -> new BigDecimal(y.intValue())).toList();
     IntStream.range(0, allX.size())
         .forEach(i -> coordinates.add(List.of(allX.get(i), allY.get(i))));
     var featureId = randomUUID().toString();

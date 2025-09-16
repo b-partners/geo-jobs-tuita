@@ -9,6 +9,7 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 import app.bpartners.geojobs.endpoint.rest.controller.mapper.DetectionStepStatisticMapper;
+import app.bpartners.geojobs.endpoint.rest.controller.mapper.RoofDelimiterMapper;
 import app.bpartners.geojobs.endpoint.rest.controller.mapper.StatusMapper;
 import app.bpartners.geojobs.endpoint.rest.mapper.DetectionFromStatisticRestMapper;
 import app.bpartners.geojobs.file.bucket.BucketComponent;
@@ -16,6 +17,8 @@ import app.bpartners.geojobs.job.model.JobStatus;
 import app.bpartners.geojobs.job.model.statistic.TaskStatistic;
 import app.bpartners.geojobs.repository.model.detection.Detection;
 import app.bpartners.geojobs.service.DetectionFeaturesResultImageRetriever;
+import app.bpartners.geojobs.service.DetectionImageAttributeRetriever;
+import app.bpartners.geojobs.service.DetectionVggAttributeRetriever;
 import app.bpartners.geojobs.service.detection.DetectionMachineDetectionStatisticsComputer;
 import app.bpartners.geojobs.service.detection.ZoneDetectionJobService;
 import java.util.List;
@@ -33,6 +36,11 @@ class DetectionMachineStatisticsComputerTest {
   ZoneDetectionJobService zoneDetectionJobServiceMock = mock();
   DetectionFeaturesResultImageRetriever featureImageRetrieverMock =
       mock(DetectionFeaturesResultImageRetriever.class);
+  DetectionImageAttributeRetriever imageAttributeRetrieverMock =
+      mock(DetectionImageAttributeRetriever.class);
+  DetectionVggAttributeRetriever vggAttributeRetrieverMock =
+      mock(DetectionVggAttributeRetriever.class);
+  RoofDelimiterMapper roofDelimiterMapperMock = mock();
   DetectionMachineDetectionStatisticsComputer subject;
 
   @BeforeEach
@@ -41,7 +49,12 @@ class DetectionMachineStatisticsComputerTest {
         .thenAnswer(invocation -> ((Detection) invocation.getArgument(0)).getProvidedGeoJsonZone());
     detectionFromStatisticRestMapper =
         new DetectionFromStatisticRestMapper(
-            bucketComponentMock, detectionStepStatisticMapper, featureImageRetrieverMock);
+            bucketComponentMock,
+            detectionStepStatisticMapper,
+            featureImageRetrieverMock,
+            imageAttributeRetrieverMock,
+            vggAttributeRetrieverMock,
+            roofDelimiterMapperMock);
     subject =
         new DetectionMachineDetectionStatisticsComputer(
             detectionFromStatisticRestMapper, zoneDetectionJobServiceMock);

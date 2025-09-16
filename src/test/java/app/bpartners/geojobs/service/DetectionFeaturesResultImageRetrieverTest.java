@@ -29,19 +29,29 @@ import software.amazon.awssdk.services.s3.model.S3Object;
 @Slf4j
 class DetectionFeaturesResultImageRetrieverTest {
   private static final String PRE_SIGNED_S3_URL = "http://presigned-s3-url.com";
+  private static final String IMAGE_URL_FROM_RETRIEVER = "http://primary-image-url.com";
+  private static final String VGG_URL_FROM_RETRIEVER = "http://primary-vgg-url.com";
   BucketComponent bucketComponentMock = mock();
   CustomBucketComponent customBucketComponentMock = mock();
   BuildingApi buildingApiMock = mock(BuildingApi.class);
   GeometryConverter geometryConverter = new GeometryConverter(buildingApiMock);
+  DetectionImageAttributeRetriever imageAttributeRetrieverMock = mock();
+  DetectionVggAttributeRetriever vggAttributeRetrieverMock = mock();
   DetectionFeaturesResultImageRetriever subject =
       new DetectionFeaturesResultImageRetriever(
-          bucketComponentMock, customBucketComponentMock, geometryConverter);
+          bucketComponentMock,
+          customBucketComponentMock,
+          geometryConverter,
+          imageAttributeRetrieverMock,
+          vggAttributeRetrieverMock);
 
   @BeforeEach
   void setUp() {
     when(customBucketComponentMock.listObjects(any(), any()))
         .thenReturn(List.of(mock(S3Object.class))) // Get only original image
         .thenReturn(List.of()); // Do not retrieve drawn image
+    when(imageAttributeRetrieverMock.apply(any())).thenReturn(null);
+    when(vggAttributeRetrieverMock.apply(any())).thenReturn(null);
   }
 
   @SneakyThrows
@@ -68,6 +78,37 @@ class DetectionFeaturesResultImageRetrieverTest {
     var actual = subject.apply(detectionMock);
 
     var expectedFeatures = expectedFeaturesContainingImageUrl(longitude, latitude);
+    assertEquals(expectedFeatures.toString(), actual.toString());
+  }
+
+  @SneakyThrows
+  @Test
+  void retrieve_feature_point_extended_original_image_from_property_retriever() {
+    reset(imageAttributeRetrieverMock);
+    reset(vggAttributeRetrieverMock);
+    var detectionMock = mock(Detection.class);
+    var latitude = BigDecimal.valueOf(46.651930);
+    var longitude = BigDecimal.valueOf(-0.249317);
+    var layer = "cite:PCRS";
+    var features = List.of(somePoint(longitude, latitude, null));
+    when(detectionMock.hasToitureModelName()).thenReturn(true);
+    when(detectionMock.isSucceeded()).thenReturn(true);
+    when(detectionMock.getProvidedGeoJsonZone()).thenReturn(features);
+    when(detectionMock.getDetectableObjectModel())
+        .thenReturn(new DetectableObjectModel().modelName(TOITURE));
+    when(detectionMock.getGeoServerProperties())
+        .thenReturn(
+            new GeoServerProperties().geoServerParameter(new GeoServerParameter().layers(layer)));
+    when(imageAttributeRetrieverMock.apply(any())).thenReturn(IMAGE_URL_FROM_RETRIEVER);
+    when(vggAttributeRetrieverMock.apply(any())).thenReturn(VGG_URL_FROM_RETRIEVER);
+    when(bucketComponentMock.presign(
+            layer + "/extended_original_" + longitude + "_" + latitude + ".jpg",
+            Duration.ofHours(1L)))
+        .thenReturn(new URI(PRE_SIGNED_S3_URL).toURL());
+
+    var actual = subject.apply(detectionMock);
+
+    var expectedFeatures = expectedFeaturesContainingImageUrlAndVggUrl(longitude, latitude);
     assertEquals(expectedFeatures.toString(), actual.toString());
   }
 
@@ -190,6 +231,15 @@ class DetectionFeaturesResultImageRetrieverTest {
       BigDecimal longitude, BigDecimal latitude) {
     var properties = new HashMap<String, Object>();
     properties.put("original_image_url", PRE_SIGNED_S3_URL);
+    return List.of(somePoint(longitude, latitude, properties));
+  }
+
+  private List<Feature> expectedFeaturesContainingImageUrlAndVggUrl(
+      BigDecimal longitude, BigDecimal latitude) {
+    var properties = new HashMap<String, Object>();
+    properties.put("original_image_url", IMAGE_URL_FROM_RETRIEVER);
+    properties.put("vgg_file_url", VGG_URL_FROM_RETRIEVER);
+    properties.put("drawn_image_url", null);
     return List.of(somePoint(longitude, latitude, properties));
   }
 

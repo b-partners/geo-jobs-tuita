@@ -149,6 +149,9 @@ public class SecurityConf {
                     .requestMatchers(GET, "/detections/*")
                     .hasAnyAuthority(
                         ROLE_ADMIN.name(), ROLE_COMMUNITY.name(), ROLE_INSURANCE.name())
+                    .requestMatchers(PUT, "/detections/*/roofs/properties")
+                    .hasAnyAuthority(
+                        ROLE_ADMIN.name(), ROLE_COMMUNITY.name(), ROLE_INSURANCE.name())
                     .requestMatchers(POST, "/detections/*/geojson")
                     .hasAnyAuthority(ROLE_ADMIN.name())
                     .requestMatchers(POST, "/detections/*/shape")

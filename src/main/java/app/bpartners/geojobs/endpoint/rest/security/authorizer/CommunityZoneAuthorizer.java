@@ -30,14 +30,14 @@ public class CommunityZoneAuthorizer
     }
     var candidateFeaturesPolygon =
         candidateFeatures.stream()
-            .map(featureMapper::toDomain)
+            .map(featureMapper::toDomainPolygon)
             .reduce((acc, feature) -> (Polygon) acc.union(feature));
 
     var authorizedZonePolygon =
         communityAuthorization.getAuthorizedZones().stream()
             .map(CommunityAuthorizedZone::getMultiPolygon)
             .map(this::convertPolygonToFeature)
-            .map(featureMapper::toDomain)
+            .map(featureMapper::toDomainPolygon)
             .reduce((acc, feature) -> (Polygon) acc.union(feature))
             .orElseThrow(
                 () ->

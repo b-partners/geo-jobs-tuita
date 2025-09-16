@@ -6,7 +6,6 @@ import app.bpartners.geojobs.endpoint.event.EventProducer;
 import app.bpartners.geojobs.endpoint.event.model.DetectionVGGRequested;
 import app.bpartners.geojobs.endpoint.event.model.ExtendedImageWithDetectedObjectRequested;
 import app.bpartners.geojobs.endpoint.rest.model.*;
-import app.bpartners.geojobs.file.FileWriter;
 import app.bpartners.geojobs.file.bucket.BucketComponent;
 import app.bpartners.geojobs.model.DetectedObjectTypeWithPolygon;
 import app.bpartners.geojobs.model.geometry.PolygonObjectType;
@@ -20,7 +19,6 @@ import app.bpartners.geojobs.repository.model.detection.MachineDetectedTile;
 import app.bpartners.geojobs.service.DetectedImageDraw;
 import app.bpartners.geojobs.service.GeometryTiledValidator;
 import app.bpartners.geojobs.service.geojson.GeometryConverter;
-import app.bpartners.geojobs.service.tile19.ExtenderApi;
 import app.bpartners.geojobs.service.tiling.TileFinder;
 import java.io.File;
 import java.math.BigDecimal;
@@ -40,8 +38,6 @@ public class ExtendedImageWithDetectedObjectRequestedService
   private final MachineDetectedTileRepository detectedTileRepository;
   private final BucketComponent bucketComponent;
   private final DetectedImageDraw detectedImageDraw;
-  private final ExtenderApi extenderApi;
-  private final FileWriter fileWriter;
   private final DetectionRepository detectionRepository;
   private final GeometryConverter geometryConverter;
   private final EventProducer eventProducer;
@@ -82,27 +78,6 @@ public class ExtendedImageWithDetectedObjectRequestedService
     } else {
       eventProducer.accept(List.of(detectionVGGRequested));
     }
-
-    /*
-    TODO: uncomment and debug drawn images
-    var featureWithObjectDrawnImages = computeDrawnImages(tiledPixelPolygonGroupedByFeature, layer);
-    featureWithObjectDrawnImages.forEach(
-        (feature, value) -> {
-          var pointFeature = getPointOrCentroidAttribute(feature);
-          if (pointFeature == null) {
-            return;
-          }
-          var longitude = pointFeature.getCoordinates().getFirst();
-          var latitude = pointFeature.getCoordinates().getLast();
-          log.info("file size {}", value.size());
-          log.info("files to be extended {}", value);
-          var extendedDrawnImageBase64 = extenderApi.apply(value);
-          var filename = layer + "/extended_drawn_" + longitude + "_" + latitude;
-
-          var extendedDrawnFile = fileWriter.base64ToFile(extendedDrawnImageBase64, filename);
-          var bucketKey = filename + ".jpg";
-          bucketComponent.upload(extendedDrawnFile, bucketKey);
-        });*/
   }
 
   private List<TiledPixelPolygonSerializable> serializeTiledPixelPolygon(
@@ -161,6 +136,7 @@ public class ExtendedImageWithDetectedObjectRequestedService
                                                   .getGeometry()
                                                   .getMultiPolygon()
                                                   .getCoordinates());
+                                      log.info("debug polygon to be projected {}", polygon);
                                       var detectableObjectType =
                                           detectedObject.getDetectableObjectType();
                                       return new PolygonObjectType(polygon, detectableObjectType);

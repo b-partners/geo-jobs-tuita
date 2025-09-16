@@ -2,11 +2,12 @@ package app.bpartners.geojobs.repository.model.tiling;
 
 import app.bpartners.geojobs.endpoint.rest.model.TileCoordinates;
 import app.bpartners.geojobs.endpoint.rest.model.TileInfoSize;
+import java.io.File;
 import java.io.Serializable;
 import java.time.Instant;
 import lombok.*;
 
-@Builder
+@Builder(toBuilder = true)
 @NoArgsConstructor
 @AllArgsConstructor
 @Getter
@@ -18,6 +19,7 @@ public class Tile implements Serializable {
   private TileInfoSize size;
   private TileCoordinates coordinates;
   private String bucketPath;
+  private File image;
 
   @Override
   public String toString() {

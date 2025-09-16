@@ -11,8 +11,10 @@ import app.bpartners.geojobs.repository.model.community.CommunityAuthorizedZone;
 import app.bpartners.geojobs.repository.model.community.CommunityDetectableObjectType;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 
+@Slf4j
 @Component
 @RequiredArgsConstructor
 public class ApiKeyMapper {
@@ -30,23 +32,41 @@ public class ApiKeyMapper {
 
   private CommunityAuthorization toCommunityAuthorization(
       CreateApiKey createApiKey, String newCommunityId) {
+    if (createApiKey.getDetectableObjectTypes() != null
+        && createApiKey.getDetectableObjectTypes().isEmpty()) {
+      log.warn("DEPRECATED: detectableObjectTypes still used. Instead, use detectableObjectModel");
+    }
+    var communityDetectableObjectTypes = computeDetectableObjectTypes(createApiKey, newCommunityId);
     var maxSurface = createApiKey.getMaxSurface();
     return CommunityAuthorization.builder()
         .id(newCommunityId)
         .apiKey(randomUUID().toString())
         .name(createApiKey.getConsumerName())
         .email(createApiKey.getConsumerEmail())
-        .detectableObjectTypes(
-            createApiKey.getDetectableObjectTypes().stream()
-                .map(
-                    detectableObjectType ->
-                        toCommunityDetectableObjectType(newCommunityId, detectableObjectType))
-                .toList())
+        .detectableObjectTypes(communityDetectableObjectTypes)
         .maxSurface(maxSurface == null ? 0 : maxSurface.doubleValue())
         .maxSurfaceUnit(SQUARE_DEGREE)
         .role(toDomain(createApiKey.getConsumerType()))
         .authorizedZones(toCommunityAuthorizedZone(createApiKey, newCommunityId))
         .build();
+  }
+
+  private List<CommunityDetectableObjectType> computeDetectableObjectTypes(
+      CreateApiKey createApiKey, String newCommunityId) {
+    var detectableObjectModel = createApiKey.getDetectableObjectModel();
+    if (detectableObjectModel != null && detectableObjectModel.getModelName() != null) {
+      var modelName = detectableObjectModel.getModelName();
+      return detectableObjectTypeMapper.mapFromModel(modelName).stream()
+          .map(
+              detectableObjectType ->
+                  toCommunityDetectableObjectType(newCommunityId, detectableObjectType))
+          .toList();
+    }
+    return createApiKey.getDetectableObjectTypes().stream()
+        .map(
+            detectableObjectType ->
+                toCommunityDetectableObjectType(newCommunityId, detectableObjectType))
+        .toList();
   }
 
   private List<CommunityAuthorizedZone> toCommunityAuthorizedZone(

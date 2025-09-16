@@ -72,6 +72,7 @@ public class DetectionResponse {
     private Map<String, Object> fileAttributes;
 
     @JsonProperty("regions")
+    @Setter
     private Map<String, Region> regions;
 
     @ToString

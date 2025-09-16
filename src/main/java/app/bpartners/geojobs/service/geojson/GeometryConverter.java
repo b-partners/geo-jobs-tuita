@@ -1,7 +1,10 @@
 package app.bpartners.geojobs.service.geojson;
 
+import static app.bpartners.geojobs.endpoint.rest.model.Feature.TypeEnum.FEATURE;
 import static app.bpartners.geojobs.endpoint.rest.model.Geometry.TypeEnum.MULTI_POLYGON;
+import static app.bpartners.geojobs.endpoint.rest.model.Polygon.TypeEnum.POLYGON;
 
+import app.bpartners.geojobs.endpoint.rest.model.FeatureGeometry;
 import app.bpartners.geojobs.model.exception.NotImplementedException;
 import app.bpartners.geojobs.repository.model.Feature;
 import app.bpartners.geojobs.service.GeometryTools;
@@ -17,6 +20,7 @@ import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
 import org.geotools.geojson.geom.GeometryJSON;
 import org.locationtech.jts.geom.*;
+import org.locationtech.jts.geom.util.GeometryFixer;
 import org.springframework.stereotype.Component;
 
 // Most ChatGPT-generated code
@@ -60,6 +64,26 @@ public class GeometryConverter {
                 .build())
         .properties(new HashMap<>(properties))
         .build();
+  }
+
+  public app.bpartners.geojobs.endpoint.rest.model.Feature toRestFeature(
+      org.locationtech.jts.geom.Polygon jtsPolygon) {
+    return new app.bpartners.geojobs.endpoint.rest.model.Feature()
+        .type(FEATURE)
+        .properties(new HashMap<>())
+        .geometry(
+            new FeatureGeometry(
+                new app.bpartners.geojobs.endpoint.rest.model.Polygon()
+                    .type(POLYGON)
+                    .coordinates(
+                        List.of(
+                            Arrays.stream(jtsPolygon.getCoordinates()).toList().stream()
+                                .map(
+                                    coordinate ->
+                                        List.of(
+                                            BigDecimal.valueOf(coordinate.getX()),
+                                            BigDecimal.valueOf(coordinate.getY())))
+                                .toList()))));
   }
 
   public MultiPolygon retrieveNearestRoofMultiPolygon(
@@ -204,8 +228,33 @@ public class GeometryConverter {
             .map(pair -> new Coordinate(pair.get(0).doubleValue(), pair.get(1).doubleValue()))
             .toArray(Coordinate[]::new);
 
+    coordinates = ensureClosed(coordinates);
+
     LinearRing shell = geometryFactory.createLinearRing(coordinates);
-    return geometryFactory.createPolygon(shell);
+
+    Polygon polygon = geometryFactory.createPolygon(shell);
+
+    if (!polygon.isValid()) {
+      var fixGeometry = GeometryFixer.fix(polygon);
+      if (fixGeometry instanceof Polygon) {
+        polygon = (Polygon) fixGeometry; // ou polygon.buffer(0)
+      } else if (fixGeometry instanceof MultiPolygon) {
+        polygon = (Polygon) fixGeometry.getGeometryN(0);
+      }
+    }
+
+    return polygon;
+  }
+
+  private static Coordinate[] ensureClosed(Coordinate[] coords) {
+    if (coords.length == 0) return coords;
+    if (!coords[0].equals2D(coords[coords.length - 1])) {
+      Coordinate[] closed = new Coordinate[coords.length + 1];
+      System.arraycopy(coords, 0, closed, 0, coords.length);
+      closed[coords.length] = coords[0];
+      return closed;
+    }
+    return coords;
   }
 
   public MultiPolygon apply(List<List<List<List<BigDecimal>>>> multiPolygonData) {
@@ -291,6 +340,13 @@ public class GeometryConverter {
       }
       coordinates[i] = new Coordinate(point.get(0).doubleValue(), point.get(1).doubleValue());
     }
+    if (coordinates.length > 0 && !coordinates[0].equals2D(coordinates[coordinates.length - 1])) {
+
+      Coordinate[] closed = new Coordinate[coordinates.length + 1];
+      System.arraycopy(coordinates, 0, closed, 0, coordinates.length);
+      closed[closed.length - 1] = coordinates[0];
+      coordinates = closed;
+    }
     return geometryFactory.createLinearRing(coordinates);
   }
 
@@ -312,7 +368,12 @@ public class GeometryConverter {
 
   @SneakyThrows
   public Geometry readGeometryFromString(String geoJsonString) {
-    GeometryJSON geometryJSON = new GeometryJSON(15);
+    return readGeometryFromString(geoJsonString, 15);
+  }
+
+  @SneakyThrows
+  public Geometry readGeometryFromString(String geoJsonString, int decimals) {
+    GeometryJSON geometryJSON = new GeometryJSON(decimals);
     return geometryJSON.read(new StringReader(geoJsonString));
   }
 
@@ -352,7 +413,7 @@ public class GeometryConverter {
 
   public static BinaryOperator<MultiPolygon> unifyMultiPolygon() {
     return (multiPolygon1, multiPolygon2) -> {
-      var unifiedGeometry = multiPolygon1.union(multiPolygon2);
+      var unifiedGeometry = multiPolygon1.union(multiPolygon2).buffer(0);
       if (unifiedGeometry instanceof MultiPolygon multiPolygon) {
         return multiPolygon;
       } else if (unifiedGeometry instanceof Polygon polygon) {

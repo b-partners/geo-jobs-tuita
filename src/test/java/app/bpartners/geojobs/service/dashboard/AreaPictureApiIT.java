@@ -6,6 +6,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.springframework.http.HttpStatus.INTERNAL_SERVER_ERROR;
 
+import app.bpartners.geojobs.conf.FacadeIT;
 import app.bpartners.geojobs.service.dashboard.component.AreaPictureDetails;
 import app.bpartners.geojobs.service.dashboard.component.AreaPictureMapLayer;
 import app.bpartners.geojobs.service.dashboard.component.CrupdateAreaPictureDetails;
@@ -14,17 +15,21 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import org.jetbrains.annotations.NotNull;
 import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.client.HttpServerErrorException;
+import org.springframework.web.client.RestTemplate;
 
 // TODO : add unit mock test
 @Disabled("TODO: local use only, disable otherwise")
-class AreaPictureApiIT {
+class AreaPictureApiIT extends FacadeIT {
   private static final String API_500_INTERNAL_SERVER_ERROR_MESSAGE_FOR_BAD_ADDRESS_PROVIDED =
       "{\"type\":\"500 INTERNAL_SERVER_ERROR\",\"message\":\"Index 0 out of bounds for length 0\"}";
   ApiConfiguration apiConfiguration = new ApiConfiguration(System.getenv("BPARTNERS_API_URL"));
   final ObjectMapper objectMapper = new ObjectMapper().findAndRegisterModules();
   SecurityApi securityApi = new SecurityApi(apiConfiguration, objectMapper);
-  UserAccountsApi userAccountsApi = new UserAccountsApi(apiConfiguration, securityApi);
+  @Autowired RestTemplate restTemplate;
+  UserAccountsApi userAccountsApi =
+      new UserAccountsApi(restTemplate, apiConfiguration, securityApi);
   AreaPictureApi subject = new AreaPictureApi(apiConfiguration, userAccountsApi);
   final String apiKey = System.getenv("API_KEY");
 

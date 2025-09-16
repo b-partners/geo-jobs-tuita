@@ -42,7 +42,7 @@ public class TilingTaskMapper {
         .submissionInstant(now())
         .parcels(
             List.of(
-                featureMapper.toDomain(
+                featureMapper.toDomainPolygon(
                     generatedParcelId, createFeature, geoServerUrl, geoServerParameter)))
         .build();
   }

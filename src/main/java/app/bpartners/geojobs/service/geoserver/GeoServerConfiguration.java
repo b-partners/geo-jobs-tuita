@@ -24,7 +24,7 @@ public class GeoServerConfiguration {
                 .styles("")
                 .format("image/jpeg")
                 .transparent(true)
-                .version("1.0.0")
+                .version("1.3.0")
                 .width(1024)
                 .height(1024)
                 .srs("EPSG:3857"));

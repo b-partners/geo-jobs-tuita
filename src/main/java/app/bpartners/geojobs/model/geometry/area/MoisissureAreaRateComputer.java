@@ -50,7 +50,7 @@ public class MoisissureAreaRateComputer extends AreaRateComputer {
           tile.getDetectedObjects().stream()
               .filter(o -> o.getDetectableObjectType().equals(detectableType))
               .map(DetectedObject::getFeature)
-              .map(featureMapper::toDomain)
+              .map(featureMapper::toDomainPolygon)
               .mapToDouble(Polygon::getArea)
               .sum();
       return computedArea / roofArea;

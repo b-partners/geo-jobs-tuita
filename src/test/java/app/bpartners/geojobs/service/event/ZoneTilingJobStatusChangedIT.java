@@ -32,7 +32,7 @@ class ZoneTilingJobStatusChangedIT extends FacadeIT {
 
   @BeforeEach
   public void setUp() {
-    doNothing().when(pointExtendedImageRequestMock).accept(any(), any(), any(), any());
+    doNothing().when(pointExtendedImageRequestMock).accept(any(), any(), any());
   }
 
   @Test

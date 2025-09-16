@@ -14,6 +14,7 @@ import static org.mockito.Mockito.*;
 import app.bpartners.geojobs.endpoint.event.EventProducer;
 import app.bpartners.geojobs.endpoint.event.model.GeoJsonConversionProcessSucceeded;
 import app.bpartners.geojobs.endpoint.rest.controller.mapper.DetectionStepStatisticMapper;
+import app.bpartners.geojobs.endpoint.rest.controller.mapper.RoofDelimiterMapper;
 import app.bpartners.geojobs.endpoint.rest.controller.mapper.StatusMapper;
 import app.bpartners.geojobs.endpoint.rest.mapper.DetectionFromStatisticRestMapper;
 import app.bpartners.geojobs.endpoint.rest.model.DetectableObjectModel;
@@ -33,9 +34,7 @@ import app.bpartners.geojobs.repository.MachineDetectedTileRepository;
 import app.bpartners.geojobs.repository.model.community.CommunityAuthorization;
 import app.bpartners.geojobs.repository.model.detection.Detection;
 import app.bpartners.geojobs.repository.model.detection.MachineDetectedTile;
-import app.bpartners.geojobs.service.DetectionFeaturesResultImageRetriever;
-import app.bpartners.geojobs.service.DetectionVGGUpdate;
-import app.bpartners.geojobs.service.RooferDetectionService;
+import app.bpartners.geojobs.service.*;
 import app.bpartners.geojobs.service.detection.DetectionMapper;
 import app.bpartners.geojobs.service.detection.DetectionMaskCreator;
 import app.bpartners.geojobs.service.detection.DetectionResponse;
@@ -75,9 +74,19 @@ class RooferDetectionServiceTest {
       mock(DetectionFeaturesResultImageRetriever.class);
   DetectionStepStatisticMapper detectionStepStatisticMapper =
       new DetectionStepStatisticMapper(statusMapper);
+  DetectionImageAttributeRetriever imageAttributeRetrieverMock =
+      mock(DetectionImageAttributeRetriever.class);
+  DetectionVggAttributeRetriever vggAttributeRetrieverMock =
+      mock(DetectionVggAttributeRetriever.class);
+  RoofDelimiterMapper roofDelimiterMapperMock = mock();
   DetectionFromStatisticRestMapper detectionFromStatisticRestMapper =
       new DetectionFromStatisticRestMapper(
-          bucketComponent, detectionStepStatisticMapper, featureImageRetrieverMock);
+          bucketComponent,
+          detectionStepStatisticMapper,
+          featureImageRetrieverMock,
+          imageAttributeRetrieverMock,
+          vggAttributeRetrieverMock,
+          roofDelimiterMapperMock);
   Mailer mailer = mock();
   AuthProvider authProvider = mock();
   HTMLTemplateParser htmlTemplateParser = new HTMLTemplateParser();
@@ -119,7 +128,7 @@ class RooferDetectionServiceTest {
                         DetectionResponse.ImageData.builder().regions(Map.of()).build()))
                 .build());
     when(machineDetectedTileRepository.save(any())).thenReturn(new MachineDetectedTile());
-    when(vggFactoryMock.from(any(Polygon.class), anyList())).thenReturn(new VGG());
+    when(vggFactoryMock.from(any(Polygon.class), any())).thenReturn(new VGG());
     when(fileWriter.write(any(), any(), any())).thenReturn(mock(File.class));
     when(bucketComponent.presign(any(String.class))).thenReturn(PRESIGNED_URL);
     when(authProvider.getAuthenticatedCommunity())

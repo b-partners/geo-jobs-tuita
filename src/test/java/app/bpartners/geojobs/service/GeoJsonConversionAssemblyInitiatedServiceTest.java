@@ -68,9 +68,16 @@ class GeoJsonConversionAssemblyInitiatedServiceTest {
   GeoJsonMapper geoJsonMapper = new GeoJsonMapper(new GeoJsonMultiPolygonCorrector());
   BuildingApi buildingApiMock = mock();
   FeatureMapper featureMapper = new FeatureMapper(new GeometryConverter(buildingApiMock));
+  ZoneService zoneServiceMock = mock();
   GeometryConverter geometryConverter = new GeometryConverter(buildingApiMock);
+  DetectionRoofSlopeValidator detectionRoofSlopeValidatorMock = mock();
   DetectionService detectionServiceMock =
-      new DetectionService(zoneDetectionJobServiceMock, detectionRepositoryMock);
+      new DetectionService(
+          zoneDetectionJobServiceMock,
+          detectionRepositoryMock,
+          eventProducerMock,
+          zoneServiceMock,
+          detectionRoofSlopeValidatorMock);
   ZipGeoJsonAssembler zipGeoJsonAssemblerMock = mock();
   GeoJsonConversionAssemblyInitiatedService subject =
       new GeoJsonConversionAssemblyInitiatedService(

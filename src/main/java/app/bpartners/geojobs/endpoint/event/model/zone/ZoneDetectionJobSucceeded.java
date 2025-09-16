@@ -1,5 +1,8 @@
 package app.bpartners.geojobs.endpoint.event.model.zone;
 
+import static app.bpartners.geojobs.endpoint.event.EventStack.EVENT_STACK_2;
+
+import app.bpartners.geojobs.endpoint.event.EventStack;
 import app.bpartners.geojobs.endpoint.event.model.PojaEvent;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import java.time.Duration;
@@ -30,5 +33,10 @@ public class ZoneDetectionJobSucceeded extends PojaEvent {
   @Override
   public Duration maxConsumerBackoffBetweenRetries() {
     return Duration.ofMinutes(1);
+  }
+
+  @Override
+  public EventStack getEventStack() {
+    return EVENT_STACK_2;
   }
 }

@@ -35,7 +35,6 @@ public class TileDetectionTaskConsumer implements TaskConsumer<TileDetectionTask
   private final DetectionRepository detectionRepository;
   private final GeometryConverter geometryConverter;
   private final DetectionMaskFromTileRetriever maskRetriever;
-  private final DetectionProvidedZoneUnifier detectionProvidedZoneUnifier;
 
   @Override
   public void accept(TileDetectionTask tileDetectionTask) {
@@ -49,9 +48,7 @@ public class TileDetectionTaskConsumer implements TaskConsumer<TileDetectionTask
     var tileCoordinates = tile.getCoordinates();
     var detection = detectionRepository.findByZdjId(zoneDetectionJobId).orElse(null);
     if (detection != null) {
-      var providedGeoJsonZone = detection.getProvidedGeoJsonZone();
-      if (providedGeoJsonZone != null && detection.hasToitureModelName()) {
-        var unifiedProvidedZone = detectionProvidedZoneUnifier.apply(detection);
+      if (detection.hasToitureModelName()) {
         var multiPolygonFromTile =
             geometryConverter.getMultiPolygonFromTile(
                 tileCoordinates.getX(), tileCoordinates.getY(), tileCoordinates.getZ());
@@ -60,64 +57,50 @@ public class TileDetectionTaskConsumer implements TaskConsumer<TileDetectionTask
             featureWithDelimitations.stream()
                 .map(FeatureWithDelimitation::delimitations)
                 .flatMap(List::stream)
-                .filter(
+                .map(
                     roofFeature -> {
                       var geometry =
                           geometryConverter.readGeometryFromString(
                               roofFeature.getGeometry().getActualInstanceStringValue());
                       if (geometry instanceof MultiPolygon roofMultiPolygon) {
-                        return multiPolygonFromTile.intersects(roofMultiPolygon);
+                        return multiPolygonFromTile.intersection(roofMultiPolygon);
                       }
                       if (geometry instanceof Polygon roofPolygon) {
-                        return multiPolygonFromTile.intersects(roofPolygon);
+                        return multiPolygonFromTile.intersection(roofPolygon);
                       }
-                      return false;
+                      return null;
                     })
+                .map(
+                    geometry -> {
+                      if (geometry instanceof MultiPolygon multiPolygon) {
+                        return multiPolygon;
+                      }
+                      if (geometry instanceof Polygon polygon) {
+                        return geometryFactory.createMultiPolygon(new Polygon[] {polygon});
+                      }
+                      return null;
+                    })
+                .filter(Objects::nonNull)
                 .toList();
         if (!roofMultiPolygonIntersectedWithTilePolygon.isEmpty()) {
           var maskMultiPolygon =
               roofMultiPolygonIntersectedWithTilePolygon.stream()
-                  .map(
-                      roofFeature -> {
-                        var geometryRoofFromFeature =
-                            geometryConverter.readGeometryFromString(
-                                roofFeature.getGeometry().getActualInstanceStringValue());
-                        var intersection =
-                            geometryRoofFromFeature.intersection(multiPolygonFromTile);
-                        if (intersection instanceof MultiPolygon roofMultiPolygon) {
-                          return roofMultiPolygon;
-                        }
-                        if (intersection instanceof Polygon roofPolygon) {
-                          return geometryFactory.createMultiPolygon(new Polygon[] {roofPolygon});
-                        }
-                        return null;
-                      })
-                  .filter(Objects::nonNull)
+                  //                      .map(roofMultiPolygon -> {
+                  //                          var geometry =
+                  // multiPolygonFromTile.difference(roofMultiPolygon);
+                  //                          if( geometry instanceof MultiPolygon multiPolygon ) {
+                  //                              return multiPolygon;
+                  //                          }
+                  //                          if( geometry instanceof Polygon polygon ) {
+                  //                              return geometryFactory.createMultiPolygon(new
+                  // Polygon[] {polygon});
+                  //                          }
+                  //                          return null;
+                  //                      })
+                  //                  .filter(Objects::nonNull)
                   .reduce(unifyMultiPolygon())
-                  .map(
-                      unifiedMaskMultiPolygon -> {
-                        if (unifiedProvidedZone.isEmpty()) {
-                          return unifiedMaskMultiPolygon;
-                        }
-                        var intersectedMaskWithProvidedZone =
-                            unifiedProvidedZone.intersection(unifiedMaskMultiPolygon);
-                        if (intersectedMaskWithProvidedZone instanceof Polygon polygon) {
-                          return geometryFactory.createMultiPolygon(new Polygon[] {polygon});
-                        }
-                        if (intersectedMaskWithProvidedZone instanceof MultiPolygon multiPolygon) {
-                          return multiPolygon;
-                        }
-                        return null;
-                      })
                   .orElse(null);
-          if (maskMultiPolygon != null) {
-            log.info(
-                "Mask coordinates : {} for tileCoordinates {}", maskMultiPolygon, tileCoordinates);
-            mask = maskRetriever.apply(tile, maskMultiPolygon);
-          } else {
-            log.info("Any mask retrieved for tileCoordinates {}", tile);
-            return;
-          }
+          mask = maskRetriever.apply(tile, maskMultiPolygon);
         } else {
           log.info(
               "Actual multiPolygon retrieved from tile {} not intersecting with any roof"

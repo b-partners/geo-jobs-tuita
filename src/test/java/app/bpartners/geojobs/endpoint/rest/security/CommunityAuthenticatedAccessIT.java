@@ -4,10 +4,12 @@ import static app.bpartners.geojobs.endpoint.rest.model.ModelName.TOITURE;
 import static app.bpartners.geojobs.endpoint.rest.security.authenticator.ApiKeyAuthenticator.API_KEY_HEADER;
 import static app.bpartners.geojobs.endpoint.rest.security.model.Authority.Role.ROLE_COMMUNITY;
 import static app.bpartners.geojobs.repository.model.SurfaceUnit.SQUARE_DEGREE;
-import static app.bpartners.geojobs.repository.model.detection.DetectableType.ARBRE;
+import static app.bpartners.geojobs.repository.model.detection.DetectableType.TOITURE_REVETEMENT;
 import static java.util.UUID.randomUUID;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.doNothing;
 
 import app.bpartners.geojobs.conf.FacadeIT;
 import app.bpartners.geojobs.endpoint.rest.api.DetectionApi;
@@ -15,6 +17,7 @@ import app.bpartners.geojobs.endpoint.rest.api.MachineDetectionApi;
 import app.bpartners.geojobs.endpoint.rest.client.ApiClient;
 import app.bpartners.geojobs.endpoint.rest.client.ApiException;
 import app.bpartners.geojobs.endpoint.rest.model.*;
+import app.bpartners.geojobs.endpoint.rest.validator.CreateDetectionValidator;
 import app.bpartners.geojobs.repository.CommunityAuthorizationRepository;
 import app.bpartners.geojobs.repository.model.community.CommunityAuthorization;
 import app.bpartners.geojobs.repository.model.community.CommunityDetectableObjectType;
@@ -25,6 +28,7 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.boot.test.web.server.LocalServerPort;
 
 class CommunityAuthenticatedAccessIT extends FacadeIT {
@@ -35,6 +39,7 @@ class CommunityAuthenticatedAccessIT extends FacadeIT {
 
   @Autowired ObjectMapper om;
   @Autowired CommunityAuthorizationRepository caRepository;
+  @MockBean CreateDetectionValidator createDetectionValidatorMock;
 
   @LocalServerPort private int port;
 
@@ -42,6 +47,7 @@ class CommunityAuthenticatedAccessIT extends FacadeIT {
   void setup() {
     caRepository.save(communityAuthorization(false));
     setupClientWithApiKey();
+    doNothing().when(createDetectionValidatorMock).accept(any());
   }
 
   @AfterEach
@@ -72,10 +78,12 @@ class CommunityAuthenticatedAccessIT extends FacadeIT {
     var detectableObjectModel = new DetectableObjectModel();
     detectableObjectModel.setModelName(TOITURE);
     var createDetection = new CreateDetection().detectableObjectModel(detectableObjectModel);
-    var error =
+
+    var actual =
         assertThrows(
             ApiException.class, () -> detectionApi.processDetection(detectionId, createDetection));
-    assertTrue(error.getMessage().contains(ARBRE.name()));
+
+    assertTrue(actual.getMessage().contains(TOITURE_REVETEMENT.name()));
   }
 
   void setupClientWithApiKey() {

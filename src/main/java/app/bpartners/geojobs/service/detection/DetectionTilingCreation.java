@@ -33,6 +33,8 @@ public class DetectionTilingCreation
     var tilingTasks = getTilingTasks(createJob, job.getId());
     var ztj = zoneTilingJobService.create(job, tilingTasks);
 
+    // /!\ From ZTJMapper.from detection.splitPolygonGeoJsonZone may be updated
+
     return detectionRepository.save(detection.toBuilder().ztjId(ztj.getId()).build());
   }
 }

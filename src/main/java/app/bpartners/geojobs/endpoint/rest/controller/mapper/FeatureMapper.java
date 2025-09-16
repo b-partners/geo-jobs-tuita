@@ -16,20 +16,20 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import java.math.BigDecimal;
 import java.net.URL;
 import java.util.*;
-import javax.annotation.Nullable;
 import lombok.RequiredArgsConstructor;
 import lombok.SneakyThrows;
 import org.locationtech.jts.geom.Coordinate;
-import org.locationtech.jts.geom.GeometryFactory;
-import org.locationtech.jts.geom.LinearRing;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
 
 @Component
 @RequiredArgsConstructor
 public class FeatureMapper {
+  private static final Logger log = LoggerFactory.getLogger(FeatureMapper.class);
   private final GeometryConverter geometryConverter;
 
-  public Parcel toDomain(
+  public Parcel toDomainPolygon(
       String parcelId, Feature rest, URL geoServerUrl, GeoServerParameter GeoServerParameter) {
     var id =
         Objects.requireNonNull(rest.getProperties()).get("id") == null
@@ -151,57 +151,77 @@ public class FeatureMapper {
     };
   }
 
-  public org.locationtech.jts.geom.Polygon toDomain(Feature feature) {
-    List<List<List<List<BigDecimal>>>> multiPolygonCoordinates = validateFeature(feature);
-    return geometryConverter.toPolygon(multiPolygonCoordinates);
+  public org.locationtech.jts.geom.Geometry toDomainGeometry(Feature feature) {
+    var geometryType = feature.getGeometry().getActualInstance();
+    switch (geometryType) {
+      case Point ignored -> throw new NotImplementedException("Point geometry type not supported");
+      case Polygon polygon -> {
+        var polygons =
+            polygon.getCoordinates().stream().map(geometryConverter::convertToPolygon).toList();
+        if (polygons.size() != 1) {
+          log.info("Polygon with more than one ring not supported, first element used");
+        }
+        return polygons.getFirst();
+      }
+      case MultiPolygon multiPolygon -> {
+        var multiPolygonCoordinates = multiPolygon.getCoordinates();
+        if (multiPolygonCoordinates.size() != 1) {
+          log.info(
+              "MultiPolygon {} with more than one polygon not supported, first element used",
+              multiPolygonCoordinates);
+        }
+        return geometryConverter.apply(multiPolygonCoordinates);
+      }
+      default -> throw new NotImplementedException("Unknown geometry type " + geometryType);
+    }
+  }
+
+  public org.locationtech.jts.geom.Polygon toDomainPolygon(Feature feature) {
+    var geometry = toDomainGeometry(feature);
+    switch (geometry) {
+      case org.locationtech.jts.geom.Polygon polygon -> {
+        return polygon;
+      }
+      case org.locationtech.jts.geom.MultiPolygon multiPolygon -> {
+        if (multiPolygon.getNumGeometries() > 0) {
+          log.info(
+              "MultiPolygon {} with more than one polygon not supported, first element used",
+              multiPolygon);
+        }
+        return (org.locationtech.jts.geom.Polygon) multiPolygon.getGeometryN(0);
+      }
+      default ->
+          throw new NotImplementedException(
+              "Not supported geometry to convert to polygon " + geometry);
+    }
   }
 
   public List<org.locationtech.jts.geom.Polygon> toDomainList(Feature feature) {
-    List<List<List<List<BigDecimal>>>> multiPolygonCoordinates = validateFeature(feature);
-    GeometryFactory geometryFactory = new GeometryFactory();
-    List<List<Coordinate>> polygonCoords = new ArrayList<>();
-
-    multiPolygonCoordinates.forEach(
-        ring -> {
-          List<Coordinate> coords = new ArrayList<>();
-          ring.forEach(
-              geo -> {
-                Coordinate[] ringCoords =
-                    geo.stream()
-                        .map(
-                            point ->
-                                new Coordinate(
-                                    point.getFirst().doubleValue(), point.getLast().doubleValue()))
-                        .toArray(Coordinate[]::new);
-                coords.addAll(List.of(ringCoords));
-              });
-          polygonCoords.add(coords);
-        });
-
-    return polygonCoords.stream()
-        .map(
-            coordinates -> {
-              LinearRing linearRing =
-                  geometryFactory.createLinearRing(coordinates.toArray(new Coordinate[0]));
-              return geometryFactory.createPolygon(linearRing);
-            })
-        .toList();
-  }
-
-  @Nullable
-  private List<List<List<List<BigDecimal>>>> validateFeature(Feature feature) {
-    if (feature.getGeometry() == null) {
-      throw new IllegalArgumentException("Geometry must not be null");
+    var geometryType = feature.getGeometry().getActualInstance();
+    var acc = new ArrayList<org.locationtech.jts.geom.Polygon>();
+    switch (geometryType) {
+      case Point ignored ->
+          throw new NotImplementedException(
+              "Point geometry type not supported to convert to List<Polygon>");
+      case Polygon polygon -> {
+        var polygons =
+            polygon.getCoordinates().stream().map(geometryConverter::convertToPolygon).toList();
+        acc.addAll(polygons);
+      }
+      case MultiPolygon multiPolygon -> {
+        var multiPolygonCoordinates = multiPolygon.getCoordinates();
+        var polygonsRetrievedFromMultiPolygon =
+            multiPolygonCoordinates.stream()
+                .map(
+                    polygons -> polygons.stream().map(geometryConverter::convertToPolygon).toList())
+                .flatMap(Collection::stream)
+                .toList();
+        acc.addAll(polygonsRetrievedFromMultiPolygon);
+      }
+      default ->
+          throw new NotImplementedException("Geometry type " + geometryType + " not supported");
     }
-    FeatureGeometry geometry = feature.getGeometry();
-    var clazz = geometry.getActualInstance().getClass();
-    if (clazz.equals(MultiPolygon.class)) {
-      return geometry.getMultiPolygon().getCoordinates();
-    }
-    throw new NotImplementedException(
-        "Only MultiPolygon geometry is supported for now when mapping feature to"
-            + " Polygon, but actual geometry class is : "
-            + geometry.getActualInstance().getClass());
+    return acc;
   }
 
   public Feature toRest(org.locationtech.jts.geom.Polygon domain, int zoom, String id) {
@@ -227,5 +247,11 @@ public class FeatureMapper {
     feature.setGeometry(new FeatureGeometry(multiPolygon));
 
     return feature;
+  }
+
+  public org.locationtech.jts.geom.Polygon domainToJtsPolygon(
+      app.bpartners.geojobs.repository.model.Feature domainFeature) {
+    var rest = toRestFeature(domainFeature);
+    return toDomainPolygon(rest);
   }
 }

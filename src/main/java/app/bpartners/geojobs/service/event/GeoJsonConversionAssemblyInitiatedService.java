@@ -337,7 +337,7 @@ public class GeoJsonConversionAssemblyInitiatedService
               var address = stringListEntry.getKey();
               var polygon =
                   stringListEntry.getValue().stream()
-                      .map(featureMapper::toDomain)
+                      .map(featureMapper::toDomainPolygon)
                       .reduce(((acc, p) -> (Polygon) p.union(acc)))
                       .orElseThrow(
                           () ->

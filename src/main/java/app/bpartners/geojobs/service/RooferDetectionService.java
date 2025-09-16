@@ -111,8 +111,7 @@ public class RooferDetectionService
             .build();
 
     var roofGeometry = polygon(flattedFeatures);
-    var updatedDetectionWithVggKey =
-        processVggConversion(detection, roofGeometry, List.of(detectedTile));
+    var updatedDetectionWithVggKey = processVggConversion(detection, roofGeometry, detectedTile);
     return detectionFromStatisticRestMapper.computeEmptyStatisticFromStep(
         updatedDetectionWithVggKey, FINISHED, SUCCEEDED, MACHINE_DETECTION);
   }
@@ -120,7 +119,7 @@ public class RooferDetectionService
   private app.bpartners.geojobs.repository.model.detection.Detection processVggConversion(
       app.bpartners.geojobs.repository.model.detection.Detection detection,
       org.locationtech.jts.geom.Polygon roofGeometry,
-      List<DetectedTile> detectedTiles) {
+      DetectedTile detectedTiles) {
     var vgg = vggFactory.from(roofGeometry, detectedTiles);
     var detectionWithVggFileKey = detectionVGGUpdate.apply(vgg, detection);
     var savedDetection = detectionRepository.save(detectionWithVggFileKey);

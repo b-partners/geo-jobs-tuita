@@ -2,21 +2,25 @@ package app.bpartners.geojobs.service.dashboard;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
+import app.bpartners.geojobs.conf.FacadeIT;
 import app.bpartners.geojobs.service.dashboard.component.User;
 import app.bpartners.geojobs.service.dashboard.component.UserApiKey;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.util.List;
 import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.web.client.RestTemplate;
 
 @Disabled("TODO: local use only, disable otherwise")
-class UserAccountsApiIT {
+class UserAccountsApiIT extends FacadeIT {
   ApiConfiguration apiConfiguration = new ApiConfiguration(System.getenv("BPARTNERS_API_URL"));
   final String adminApiKey = System.getenv("API_KEY");
   final String userApiKey = System.getenv("USER_API_KEY");
   final ObjectMapper objectMapper = new ObjectMapper().findAndRegisterModules();
   SecurityApi securityApi = new SecurityApi(apiConfiguration, objectMapper);
-  UserAccountsApi subject = new UserAccountsApi(apiConfiguration, securityApi);
+  @Autowired RestTemplate restTemplate;
+  UserAccountsApi subject = new UserAccountsApi(restTemplate, apiConfiguration, securityApi);
 
   @Test
   void get_users_by_email() {

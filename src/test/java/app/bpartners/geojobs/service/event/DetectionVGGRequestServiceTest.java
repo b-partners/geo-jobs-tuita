@@ -17,19 +17,27 @@ import app.bpartners.geojobs.repository.DetectionRepository;
 import app.bpartners.geojobs.repository.model.detection.Detection;
 import app.bpartners.geojobs.service.DetectionVGGUpdate;
 import app.bpartners.geojobs.service.geojson.GeometryConverter;
+import app.bpartners.geojobs.service.tiling.TileFinder;
 import app.bpartners.geojobs.utils.FeatureCreator;
 import java.util.*;
 import org.junit.jupiter.api.Test;
+import org.locationtech.jts.geom.Coordinate;
 import org.locationtech.jts.geom.MultiPolygon;
+import org.locationtech.jts.geom.Point;
 
 class DetectionVGGRequestServiceTest {
   DetectionRepository detectionRepositoryMock = mock();
   VGGFactory vggFactory = mock();
   DetectionVGGUpdate detectionVGGUpdate = mock();
   GeometryConverter geometryConverter = mock();
+  TileFinder tileFinderMock = mock();
   DetectionVGGRequestedService subject =
       new DetectionVGGRequestedService(
-          detectionRepositoryMock, vggFactory, detectionVGGUpdate, geometryConverter);
+          detectionRepositoryMock,
+          vggFactory,
+          detectionVGGUpdate,
+          geometryConverter,
+          tileFinderMock);
   FeatureCreator featureCreator = new FeatureCreator();
 
   @Test
@@ -70,7 +78,15 @@ class DetectionVGGRequestServiceTest {
     when(polygonObjectTypeSerializableMock.polygonAsString()).thenReturn(mockPolygonAsString);
     when(geometryConverter.readGeometryFromString(eq(mockPolygonAsString)))
         .thenReturn(jtsPolygonResultMock);
-    when(geometryConverter.apply(any())).thenReturn(mock(MultiPolygon.class));
+    var latLonRoofMultiPolygonMock = mock(MultiPolygon.class);
+    var centroidMock = mock(Point.class);
+    var centroidCoordinateMock = mock(Coordinate.class);
+    when(centroidCoordinateMock.getX()).thenReturn(0.0);
+    when(centroidCoordinateMock.getY()).thenReturn(0.0);
+    when(centroidCoordinateMock.getZ()).thenReturn(0.0);
+    when(centroidMock.getCoordinate()).thenReturn(centroidCoordinateMock);
+    when(latLonRoofMultiPolygonMock.getCentroid()).thenReturn(centroidMock);
+    when(geometryConverter.apply(any())).thenReturn(latLonRoofMultiPolygonMock);
     when(polygonObjectTypeSerializableMock.detectableType()).thenReturn(MOISISSURE_CLAIR);
 
     when(filteredTiledPixelPolygons.point()).thenReturn(featurePointMock);
@@ -80,7 +96,8 @@ class DetectionVGGRequestServiceTest {
 
     mapVggFactory.put(featureVggResultMock, vggResultMock);
 
-    when(vggFactory.from(any(List.class), any(MultiPolygon.class))).thenReturn(mapVggFactory);
+    when(vggFactory.from(any(List.class), any(MultiPolygon.class), any(List.class)))
+        .thenReturn(mapVggFactory);
     when(detectionVGGUpdate.apply(eq(mapVggFactory), eq(detectionMock)))
         .thenReturn(newDetectionAfterVggUpdateMock);
     when(detectionRepositoryMock.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
@@ -99,7 +116,7 @@ class DetectionVGGRequestServiceTest {
     verify(filteredTiledPixelPolygons).tileX();
     verify(filteredTiledPixelPolygons).tileY();
     verify(filteredTiledPixelPolygons).zoom();
-    verify(vggFactory).from(any(List.class), any(MultiPolygon.class));
+    verify(vggFactory).from(any(List.class), any(MultiPolygon.class), any(List.class));
     verify(detectionVGGUpdate).apply(eq(mapVggFactory), eq(detectionMock));
     verify(detectionRepositoryMock).save(eq(newDetectionAfterVggUpdateMock));
   }

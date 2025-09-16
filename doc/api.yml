@@ -751,6 +751,26 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Detection'
+  /detections/{id}/roofs/properties:
+    put:
+      parameters:
+        - in: path
+          name: id
+          schema:
+            type: string
+          required: true
+      operationId: computeDetectionRoofsProperties
+      responses:
+        200:
+          description: Detection with computed roofSlope
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Detection'
+        400:
+          description: Detection without roofs retrieved exception or Detection without BP_TOITURE model
+        404:
+          description: Detection not found
   '/detections/{id}/roofer/email':
     post:
       tags:
@@ -1101,7 +1121,10 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/AuthorizedZone'
+        detectableObjectModel:
+          $ref: '#/components/schemas/DetectableObjectModel'
         detectableObjectTypes:
+          deprecated: true
           type: array
           items:
             $ref: '#/components/schemas/DetectableObjectType'
@@ -1396,6 +1419,7 @@ components:
         - BATI_AUTRES
         - ESPACE_VERT_PARKING
         - BACKGROUND
+        - ROAD
     ProcessJobAnnotation:
       type: object
       properties:
@@ -1730,6 +1754,9 @@ components:
             Optional. If so, must shape file or excel file or image file through its specific endpoint.
         geoJsonOutput:
           $ref: '#/components/schemas/GeoJsonOutput'
+        needsImageOutput:
+          type: boolean
+          default: false
     DetectionStep:
       properties:
         name:
@@ -1805,6 +1832,10 @@ components:
       description: |
         Optional. Mandatory only when doing sync detection using TOITURE model.
       properties:
+        roofSlopeInDegree:
+          type: number
+        roofHeightInMeter:
+          type: number
         polygon:
           type: array
           items:

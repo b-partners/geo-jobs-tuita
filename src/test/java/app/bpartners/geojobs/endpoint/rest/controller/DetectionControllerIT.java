@@ -36,6 +36,7 @@ import app.bpartners.geojobs.endpoint.rest.security.authorizer.DetectionAuthoriz
 import app.bpartners.geojobs.endpoint.rest.security.model.Principal;
 import app.bpartners.geojobs.file.FileWriter;
 import app.bpartners.geojobs.file.bucket.BucketComponent;
+import app.bpartners.geojobs.file.bucket.CustomBucketComponent;
 import app.bpartners.geojobs.job.model.JobStatus;
 import app.bpartners.geojobs.model.exception.BadRequestException;
 import app.bpartners.geojobs.model.page.BoundedPageSize;
@@ -69,6 +70,7 @@ import org.mockito.ArgumentCaptor;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.core.io.ClassPathResource;
+import software.amazon.awssdk.services.s3.model.S3Object;
 
 @Slf4j
 class DetectionControllerIT extends FacadeIT {
@@ -91,6 +93,7 @@ class DetectionControllerIT extends FacadeIT {
   @MockBean AuthProvider authProviderMock;
   @Autowired CommunityAuthorizationRepository communityAuthRepository;
   @Autowired FileWriter fileWriter;
+  @MockBean CustomBucketComponent customBucketComponent;
   FeatureCreator featureCreator = new FeatureCreator();
   DetectionCreator detectionCreator = new DetectionCreator(featureCreator);
   TaskStatisticCreator taskStatisticCreator = new TaskStatisticCreator();
@@ -340,6 +343,7 @@ class DetectionControllerIT extends FacadeIT {
                 .endToEndId(e2Id)
                 .communityOwnerId(communityOwnerId)
                 .build());
+    when(customBucketComponent.listObjects(any(), any())).thenReturn(List.of(mock(S3Object.class)));
     when(bucketComponentMock.presign(any())).thenReturn(presignedUrl);
 
     var actual = subject.configureDetectionShapeFile(e2Id, fileWriter.writeAsByte(dummyShapeFile));

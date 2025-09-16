@@ -27,11 +27,7 @@ import app.bpartners.geojobs.endpoint.event.EventProducer;
 import app.bpartners.geojobs.endpoint.event.model.DetectionExcelFileSaved;
 import app.bpartners.geojobs.endpoint.event.model.DetectionSaved;
 import app.bpartners.geojobs.endpoint.event.model.annotation.AnnotationJobVerificationSent;
-import app.bpartners.geojobs.endpoint.rest.controller.mapper.DetectableObjectTypeMapper;
-import app.bpartners.geojobs.endpoint.rest.controller.mapper.DetectionStepStatisticMapper;
-import app.bpartners.geojobs.endpoint.rest.controller.mapper.FeatureMapper;
-import app.bpartners.geojobs.endpoint.rest.controller.mapper.StatusMapper;
-import app.bpartners.geojobs.endpoint.rest.controller.mapper.ZoneTilingJobMapper;
+import app.bpartners.geojobs.endpoint.rest.controller.mapper.*;
 import app.bpartners.geojobs.endpoint.rest.mapper.DetectionFromStatisticRestMapper;
 import app.bpartners.geojobs.endpoint.rest.model.*;
 import app.bpartners.geojobs.endpoint.rest.security.AuthProvider;
@@ -127,9 +123,19 @@ class ZoneServiceTest {
   TaskStatisticCreator taskStatisticCreator = new TaskStatisticCreator();
   DetectionFeaturesResultImageRetriever featureImageRetrieverMock =
       mock(DetectionFeaturesResultImageRetriever.class);
+  DetectionImageAttributeRetriever imageAttributeRetrieverMock =
+      mock(DetectionImageAttributeRetriever.class);
+  DetectionVggAttributeRetriever vggAttributeRetrieverMock =
+      mock(DetectionVggAttributeRetriever.class);
+  RoofDelimiterMapper roofDelimiterMapper = mock();
   DetectionFromStatisticRestMapper detectionFromStatisticRestMapperMock =
       new DetectionFromStatisticRestMapper(
-          bucketComponentMock, stepStatisticMapper, featureImageRetrieverMock);
+          bucketComponentMock,
+          stepStatisticMapper,
+          featureImageRetrieverMock,
+          imageAttributeRetrieverMock,
+          vggAttributeRetrieverMock,
+          roofDelimiterMapper);
   FeatureMapper featureMapperMock = mock();
   DetectionTilingStatisticsComputer detectionTilingStatisticsComputerMock =
       new DetectionTilingStatisticsComputer(
@@ -209,7 +215,7 @@ class ZoneServiceTest {
     when(communityAuthRepositoryMock.findById(any()))
         .thenReturn(Optional.of(CommunityAuthorization.builder().apiKey(e2ApiKey).build()));
     when(geoJsonConversionJobRepositoryMock.findByZoneDetectionJobId(any())).thenReturn(List.of());
-    when(featureMapperMock.toDomain(any())).thenReturn(geometryFactory.createPolygon());
+    when(featureMapperMock.toDomainPolygon(any())).thenReturn(geometryFactory.createPolygon());
     when(featureMapperMock.toRest(any(), any(Integer.class), any()))
         .thenReturn(featureCreator.defaultFeatures().getFirst());
 

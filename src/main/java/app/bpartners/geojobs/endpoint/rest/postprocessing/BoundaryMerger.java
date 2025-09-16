@@ -338,7 +338,7 @@ public class BoundaryMerger
                       .map(c -> new Coordinate(c.y, c.x))
                       .toArray(Coordinate[]::new);
               var initialLength = coords.length;
-              if (!coords[0].equals(coords[initialLength - 1])) {
+              if (initialLength != 0 && !coords[0].equals(coords[initialLength - 1])) {
                 coords = Arrays.copyOf(coords, initialLength + 1);
                 coords[initialLength] = coords[0];
               }

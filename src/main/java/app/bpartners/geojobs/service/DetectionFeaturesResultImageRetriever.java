@@ -26,6 +26,8 @@ public class DetectionFeaturesResultImageRetriever implements Function<Detection
   private final BucketComponent bucketComponent;
   private final CustomBucketComponent customBucketComponent;
   private final GeometryConverter geometryConverter;
+  private final DetectionImageAttributeRetriever imageAttributeRetriever;
+  private final DetectionVggAttributeRetriever vggAttributeRetriever;
 
   @Override
   public List<Feature> apply(Detection detection) {
@@ -46,13 +48,15 @@ public class DetectionFeaturesResultImageRetriever implements Function<Detection
       if (layer == null) {
         return providedGeoJsonZone;
       }
-      return retrieveFeatureImageFromBucket(providedGeoJsonZone, layer);
+      return retrieveFeatureImageFromBucket(providedGeoJsonZone, layer, detection);
     }
     return providedGeoJsonZone;
   }
 
   private ArrayList<Feature> retrieveFeatureImageFromBucket(
-      List<Feature> providedGeoJsonZone, String layer) {
+      List<Feature> providedGeoJsonZone, String layer, Detection detection) {
+    var imageUrl = imageAttributeRetriever.apply(detection);
+    var vggUrl = vggAttributeRetriever.apply(detection);
     var updatedGeoJson = new ArrayList<>(providedGeoJsonZone);
     updatedGeoJson.forEach(
         feature -> {
@@ -79,13 +83,23 @@ public class DetectionFeaturesResultImageRetriever implements Function<Detection
           var drawnFileKey = layer + "/extended_drawn_" + longitude + "_" + latitude + ".jpg";
           var vggFileKey = layer + "/vgg_" + longitude + "_" + latitude + ".json";
 
-          addPropertyIfFileKeyExist(originalFileKey, feature, "original_image_url");
-
+          addPropertyFromRetriever(feature, originalFileKey, imageUrl, "original_image_url");
+          addPropertyFromRetriever(feature, vggFileKey, vggUrl, "vgg_file_url");
           addPropertyIfFileKeyExist(drawnFileKey, feature, "drawn_image_url");
-
-          addPropertyIfFileKeyExist(vggFileKey, feature, "vgg_file_url");
         });
     return updatedGeoJson;
+  }
+
+  private void addPropertyFromRetriever(
+      Feature feature, String fileKey, String fileKeyPresignUrl, String fileProperty) {
+    if (fileKeyPresignUrl != null) {
+      var properties =
+          feature.getProperties() == null ? new HashMap<String, Object>() : feature.getProperties();
+      properties.put(fileProperty, fileKeyPresignUrl);
+      feature.setProperties(properties);
+    } else {
+      addPropertyIfFileKeyExist(fileKey, feature, fileProperty);
+    }
   }
 
   private void addPropertyIfFileKeyExist(String fileKey, Feature feature, String fileProperty) {
