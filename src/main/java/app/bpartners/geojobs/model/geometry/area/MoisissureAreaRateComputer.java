@@ -9,7 +9,7 @@ import app.bpartners.geojobs.model.geometry.PolygonObjectType;
 import app.bpartners.geojobs.repository.model.detection.DetectableType;
 import app.bpartners.geojobs.repository.model.detection.DetectedObject;
 import app.bpartners.geojobs.service.geojson.GeometryConverter;
-import java.util.List;
+import java.util.Set;
 import org.locationtech.jts.geom.Polygon;
 
 public class MoisissureAreaRateComputer extends AreaRateComputer {
@@ -17,7 +17,7 @@ public class MoisissureAreaRateComputer extends AreaRateComputer {
   private final FeatureMapper featureMapper = new FeatureMapper(new GeometryConverter(null));
   private final double roofArea;
   private final DetectedTile tile;
-  private final List<PolygonObjectType> polygonObjectTypes;
+  private final Set<PolygonObjectType> polygonObjectTypes;
 
   public MoisissureAreaRateComputer(double roofArea, DetectedTile tile) {
     this.roofArea = roofArea;
@@ -25,7 +25,7 @@ public class MoisissureAreaRateComputer extends AreaRateComputer {
     this.polygonObjectTypes = null;
   }
 
-  public MoisissureAreaRateComputer(double roofArea, List<PolygonObjectType> polygonObjectTypes) {
+  public MoisissureAreaRateComputer(double roofArea, Set<PolygonObjectType> polygonObjectTypes) {
     this.roofArea = roofArea;
     this.polygonObjectTypes = polygonObjectTypes;
     this.tile = null;

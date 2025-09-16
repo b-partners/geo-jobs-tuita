@@ -202,7 +202,9 @@ public class VGGFactory implements Converter<Set<Polygon>, VGG> {
 
                 var properties =
                     computeProperties(
-                        roofLatLonMultiPolygon, roofPixelPolygon, allPolygonObjectTypes);
+                        roofLatLonMultiPolygon,
+                        roofPixelPolygon,
+                        new HashSet<>(allPolygonObjectTypes));
                 var annotation =
                     VGG.Annotation.builder()
                         .filename(key)
@@ -272,9 +274,9 @@ public class VGGFactory implements Converter<Set<Polygon>, VGG> {
 
   private HashMap<String, Object> computeProperties(
       Geometry lonLatRoofPolygon,
-      Geometry pixelRoofPolygon,
-      List<PolygonObjectType> originalPolygonObjectTypes) {
-    var rateComputer = new AreaRateComputerFacade(pixelRoofPolygon, originalPolygonObjectTypes);
+      Geometry roofPixelPolygon,
+      Set<PolygonObjectType> originalPolygonObjectTypes) {
+    var rateComputer = new AreaRateComputerFacade(roofPixelPolygon, originalPolygonObjectTypes);
     var usureRate = rateComputer.getUsureAreaRate();
     var humiditeRate = rateComputer.getHumidityAreaRate();
     var moisissureRate = rateComputer.getMoisissureAreaRate();
@@ -282,7 +284,7 @@ public class VGGFactory implements Converter<Set<Polygon>, VGG> {
     var globalRateType = rateComputer.getRate();
 
     var properties = new HashMap<String, Object>();
-    var dominantRoofs = new DominantRoof(originalPolygonObjectTypes).get();
+    var dominantRoofs = new DominantRoof(originalPolygonObjectTypes.stream().toList()).get();
 
     properties.put("roof_area_in_m2", geometrySquareMeterArea.apply(lonLatRoofPolygon));
     properties.put("usure_rate", usureRate);

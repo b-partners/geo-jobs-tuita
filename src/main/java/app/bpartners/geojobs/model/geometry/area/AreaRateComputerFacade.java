@@ -2,7 +2,7 @@ package app.bpartners.geojobs.model.geometry.area;
 
 import app.bpartners.geojobs.model.DetectedTile;
 import app.bpartners.geojobs.model.geometry.PolygonObjectType;
-import java.util.List;
+import java.util.Set;
 import org.locationtech.jts.geom.Geometry;
 
 public class AreaRateComputerFacade {
@@ -16,7 +16,7 @@ public class AreaRateComputerFacade {
     this.moisissureRateComputer = new MoisissureAreaRateComputer(roofGeometry.getArea(), tile);
   }
 
-  public AreaRateComputerFacade(Geometry roofGeometry, List<PolygonObjectType> polygonObjectTypes) {
+  public AreaRateComputerFacade(Geometry roofGeometry, Set<PolygonObjectType> polygonObjectTypes) {
     this.humiditeRateComputer =
         new HumiditeAreaRateComputer(roofGeometry.getArea(), polygonObjectTypes);
     this.usureRateComputer = new UsureAreaRateComputer(roofGeometry.getArea(), polygonObjectTypes);
