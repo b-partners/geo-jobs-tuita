@@ -1,0 +1,108 @@
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <style>
+        body {
+            font-family: 'Segoe UI', sans-serif;
+            background-color: #f4f6f8;
+            color: #333;
+            margin: 0;
+            padding: 2rem;
+        }
+
+        .email-content {
+            max-width: 600px;
+            margin: 0 auto;
+            background: #ffffff;
+            border-radius: 10px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.06);
+            padding: 2rem;
+        }
+
+        h1 {
+            font-size: 1.5rem;
+            margin-bottom: 1rem;
+            color: #1a202c;
+        }
+
+        .info {
+            line-height: 1.8;
+            margin-bottom: 1.5rem;
+            font-size: 1rem;
+        }
+
+        .info p {
+            margin: 0.5rem 0;
+        }
+
+        .info strong {
+            color: #2c3e50;
+        }
+
+        .highlight {
+            background-color: #f0f4ff;
+            padding: 0.25rem 0.5rem;
+            border-radius: 4px;
+        }
+
+        .footer {
+            margin-top: 2rem;
+            font-size: 0.9rem;
+            color: #6b7280;
+            border-top: 1px solid #e5e7eb;
+            padding-top: 1rem;
+        }
+
+        .signature {
+            margin-top: 1rem;
+            font-size: 0.85rem;
+            line-height: 1.6;
+            color: #4b5563;
+        }
+
+        .signature a {
+            color: #3b82f6;
+            text-decoration: none;
+        }
+
+        .signature a:hover {
+            text-decoration: underline;
+        }
+    </style>
+</head>
+<body>
+<div class="email-content">
+    <h1>Bonjour,</h1>
+    <p>La détection suivante a été lancée sur le modèle
+        <span th:text="${detection.getDetectableObjectModel().getModelName()}"></span> qui doit encore être traité
+        manuellement pour le moment.</p>
+    <div class="info">
+        <p><strong>ID interne de la détection : </strong><span th:text="${detection.getId()}" class="highlight"></span>
+        </p>
+        <p><strong>ID de la détection fourni par le consommateur : </strong><span
+                th:text="${detection.getEndToEndId()}" class="highlight"></span></p>
+        <p><strong>Nom du consommateur : </strong> <span th:text="${communityOwner.getName()}"></span></p>
+        <p><strong>Email du consommateur : </strong> <span th:text="${communityOwner.getEmail()}"></span></p>
+        <p><strong>Nom de la zone fournie : </strong><span th:text="${detection.getZoneName()}"></span></p>
+        <p><strong>Modèle IA à utiliser : </strong><span
+                th:text="${detection.getDetectableObjectModel().getModelName()}"></span></p>
+        <p><strong>Image requise : </strong><span th:text="${detectionNeedsImageOutput}"></span></p>
+        <p><strong>Format du résultat geojson attendu : </strong><span th:text="${detectionOutputType}"></span></p>
+    </div>
+
+    <p>Veuillez trouver en pièce jointe le contenu du geojson fourni par le consommateur.</p>
+
+    <div class="footer">
+        Bien cordialement,<br>
+        <div class="signature">
+            <strong>L'équipe BirdIA</strong><br>
+            BirdIA<br>
+            14 rue Soleillet, 75020 Paris<br>
+            01 84 80 31 69<br>
+            07 58 21 18 53<br>
+            <a href="https://www.birdia.fr">https://www.birdia.fr</a>
+        </div>
+    </div>
+</div>
+</body>
+</html>

@@ -8,12 +8,15 @@ import static java.util.UUID.randomUUID;
 
 import app.bpartners.geojobs.endpoint.event.EventProducer;
 import app.bpartners.geojobs.endpoint.event.model.DetectionAreaUnsupported;
+import app.bpartners.geojobs.endpoint.event.model.DetectionModelUnsupported;
 import app.bpartners.geojobs.endpoint.event.model.DetectionTilingRequested;
 import app.bpartners.geojobs.model.exception.UnsupportedDetectionAreaException;
 import app.bpartners.geojobs.repository.DetectionRepository;
 import app.bpartners.geojobs.repository.DetectionStepRepository;
+import app.bpartners.geojobs.repository.model.detection.Detection;
 import app.bpartners.geojobs.repository.model.detection.DetectionStep;
 import app.bpartners.geojobs.service.DetectionSupportedAreaValidator;
+import app.bpartners.geojobs.service.DetectionSupportedModelValidator;
 import app.bpartners.geojobs.service.detection.DetectionTilingCreation;
 import java.util.List;
 import java.util.function.Consumer;
@@ -30,28 +33,55 @@ public class DetectionTilingRequestedService implements Consumer<DetectionTiling
   private final DetectionSupportedAreaValidator detectionAreaValidator;
   private final EventProducer eventProducer;
   private final DetectionStepRepository detectionStepRepository;
+  private final DetectionSupportedModelValidator detectionSupportedModelValidator;
 
   @Override
   public void accept(DetectionTilingRequested detectionTilingRequested) {
     var detectionIdentifier = detectionTilingRequested.getDetectionIdentifier();
     var detection = detectionRepository.findById(detectionIdentifier).orElseThrow();
+    if (hasUnsupportedArea(detection)) return;
+    if (hasUnsupportedModel(detection)) return;
+    detectionTilingCreation.apply(detection);
+  }
+
+  private boolean hasUnsupportedModel(Detection detection) {
     try {
-      detectionAreaValidator.accept(detection);
-    } catch (UnsupportedDetectionAreaException e) {
+      detectionSupportedModelValidator.accept(detection);
+    } catch (UnsupportedOperationException e) {
       log.error(e.getMessage());
-      eventProducer.accept(
-          List.of(new DetectionAreaUnsupported(detectionIdentifier, e.getComputedArea())));
+      eventProducer.accept(List.of(new DetectionModelUnsupported(detection.getId())));
       detectionStepRepository.save(
           DetectionStep.builder()
               .id(randomUUID().toString())
-              .detectionId(detectionIdentifier)
+              .detectionId(detection.getId())
               .name(REQUEST_ACCEPTED)
               .progression(PROCESSING)
               .health(UNKNOWN)
               .creationDatetime(now())
               .build());
-      return;
+      return true;
     }
-    detectionTilingCreation.apply(detection);
+    return false;
+  }
+
+  private boolean hasUnsupportedArea(Detection detection) {
+    try {
+      detectionAreaValidator.accept(detection);
+    } catch (UnsupportedDetectionAreaException e) {
+      log.error(e.getMessage());
+      eventProducer.accept(
+          List.of(new DetectionAreaUnsupported(detection.getId(), e.getComputedArea())));
+      detectionStepRepository.save(
+          DetectionStep.builder()
+              .id(randomUUID().toString())
+              .detectionId(detection.getId())
+              .name(REQUEST_ACCEPTED)
+              .progression(PROCESSING)
+              .health(UNKNOWN)
+              .creationDatetime(now())
+              .build());
+      return true;
+    }
+    return false;
   }
 }
