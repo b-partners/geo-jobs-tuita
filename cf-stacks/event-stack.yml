@@ -10,6 +10,7 @@ Resources:
     Type: AWS::SQS::Queue
     Properties:
       QueueName: !Join ['' , [!Ref Env , -1-geo-jobs-tuita]]
+
       VisibilityTimeout: 901 #note(sqs-visibility): WorkerFunction1.Timeout + 1
       RedrivePolicy:
         deadLetterTargetArn: !GetAtt DeadLetterQueue1.Arn

@@ -1,13 +1,8 @@
 name: Detection completion verification IT
 
-<<<<<<< HEAD
+
 on: [ ]
-=======
-on:
-  schedule:
-    - cron: '20 * * * *'
-  workflow_dispatch:
->>>>>>> upstream/preprod
+
 
 env:
   API_URL: ${{ secrets.DETECTION_API_URL }}
