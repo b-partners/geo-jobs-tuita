@@ -9,7 +9,6 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import java.util.List;
 import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.client.RestTemplate;
 
 @Disabled("TODO: local use only, disable otherwise")
@@ -18,8 +17,8 @@ class UserAccountsApiIT extends FacadeIT {
   final String adminApiKey = System.getenv("API_KEY");
   final String userApiKey = System.getenv("USER_API_KEY");
   final ObjectMapper objectMapper = new ObjectMapper().findAndRegisterModules();
-  SecurityApi securityApi = new SecurityApi(apiConfiguration, objectMapper);
-  @Autowired RestTemplate restTemplate;
+  final RestTemplate restTemplate = new RestTemplate();
+  SecurityApi securityApi = new SecurityApi(restTemplate, apiConfiguration, objectMapper);
   UserAccountsApi subject = new UserAccountsApi(restTemplate, apiConfiguration, securityApi);
 
   @Test

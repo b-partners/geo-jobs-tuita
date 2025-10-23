@@ -18,7 +18,6 @@ info:
     1. If your zone is described by a **GeoJson**, then just set accordingly the `geoJsonZone` field in the payload.
     2. If your zone is described by a **Shape file**, then upload it in a second call `POST /detections/{id}/shape`.
     3. If your zone is described by a list of addresses in an **Excel file**, then upload it in a second call `POST /detections/{id}/excel`.
-    4. If your zone is described by an **Image**, then upload it in a second call `POST /detections/{id}/image`.
     
     # Examples
     
@@ -122,65 +121,11 @@ paths:
           required: false
       responses:
         200:
-          description: Image of provided address
+          description: Image details of provided address
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ImageOfAddress'
-  '/detections/{id}/image':
-    post:
-      tags:
-        - Image
-      operationId: detectImage
-      summary: Submit detection over an image
-      description: |
-        For security reasons, only image already previously queried from `GET /image` are supported for the moment.
-        This ensures that only small enough images are submitted, and that images quality fit the requirements of our AI models.
-      security:
-        - ApiKeyAuth: [ ]
-      parameters:
-        - $ref: '#/components/parameters/IdentifierParameter'
-      requestBody:
-        description: Image from a specific textual address to be detected
-        content:
-          multipart/form-data:
-            schema:
-              type: object
-              properties:
-                file:
-                  type: string
-                  format: binary
-      responses:
-        200:
-          description: Detection with updated image file uploaded url
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Detection'
-  '/detections/{id}/roofDelimiter':
-    post:
-      tags:
-        - Roof
-      summary: Launch detection on delimited roof
-      operationId: detectOnDelimitedRoof
-      description: |
-        Provide roof delimiter used in `BP_TOITURE` model and launches detection.
-      security:
-        - ApiKeyAuth: [ ]
-      parameters:
-        - $ref: '#/components/parameters/IdentifierParameter'
-      requestBody:
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/RoofDelimiter'
-      responses:
-        200:
-          description: Detection launched on roof delimiter
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Detection'
+                $ref: '#/components/schemas/ImageDetails'
   '/detections/{id}':
     get:
       tags:
@@ -230,6 +175,31 @@ paths:
       responses:
         200:
           description: Detection created or launched
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Detection'
+  '/detections/{id}/sync':
+    post:
+      tags:
+        - Detection
+      operationId: processDetectionSynchronously
+      summary: Process detection synchronously
+      description: |
+        Intended for small areas such as an address. Tasks are processed simultaneously, delivering results in less than 90 seconds. 
+        Results contains a image URL and vgg file URL, and can be requested through the GET /detections/{id} endpoint
+      security:
+        - ApiKeyAuth: [ ]
+      parameters:
+        - $ref: '#/components/parameters/IdentifierParameter'
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateDetection'
+      responses:
+        200:
+          description: Detection created or processing
           content:
             application/json:
               schema:
@@ -595,6 +565,11 @@ components:
             Optional. If so, must provide zone by shape or excel file through its specific endpoint.
         GeoJsonOutput:
           $ref: '#/components/schemas/GeoJsonOutput'
+        geoJsonDelimitationType:
+          type: string
+          enum:
+            - ROOF
+            - ZONE
     Detection:
       allOf:
         - $ref: '#/components/schemas/CreateDetection'
@@ -619,12 +594,16 @@ components:
             type: string
         roofDelimiter:
           $ref: '#/components/schemas/RoofDelimiter'
+        creationDatetime:
+          type: string
+          format: date-time
     DetectionStepName:
+      type: string
       enum:
-        - CONFIGURING
+        - REQUEST_ACCEPTED
         - TILING
         - MACHINE_DETECTION
-        - HUMAN_DETECTION
+        - POST_PROCESSING
     DetectionStepStatistic:
       allOf:
         - $ref: '#/components/schemas/StatusStatistic'
@@ -635,14 +614,35 @@ components:
           $ref: '#/components/schemas/ModelName'
     ModelName:
       type: string
+      description: |
+        Possible values and included objects :
+          - **BP_TOITURE** : Toiture, velux, panneau photovoltaique, moisissure, usure, fissure cassure, obstacle, cheminee, humidite, risque feu, ombre
+          - **BP_LOM** : Passage piéton
+          - **BP_ZAN** : Arbre, espace vert, toiture, voie carrossable, trottoir, parking
+          - **BP_CLIMAT_RESILIENCE** : Parking, panneau photovoltaique
+          - **BP_CONFIRMITE_PLU** : Bati, velux, panneau photovoltaique, Piscine
+          - **BP_VOIRIE_TROTTOIRS** : Trottoir, voie carrossable
+          - **BP_OLD** : Arbre, espace vert, toiture, voie carrossable, trottoir, parking, risquefeu
+          - **BP_CYCL** : Pistes cyclables, symboles cyclables 
+          - **BP_SIGN** : Marquages voiries
+          - **BP_VEGETATION** : Espace vert, Espace arboré, arbre individualisé, canopée
+          - **BP_TAMPONS** : Tampons de voiries, avaloirs, tampons hydroliques
+          - **BP_CIMETIERE** : Cimetière, espace arboré, espace vert, tombe simple, tombe double, tombe non géométrique
+          - **BP_STATIONNEMENT** : Parking
       enum:
         - BP_TOITURE
         - BP_LOM
         - BP_ZAN
         - BP_CLIMAT_RESILIENCE
         - BP_CONFIRMITE_PLU
-        - BP_TROTTOIRS
+        - BP_VOIRIE_TROTTOIRS
         - BP_OLD
+        - BP_CYCL
+        - BP_SIGN
+        - BP_VEGETATION
+        - BP_TAMPONS
+        - BP_CIMETIERE
+        - BP_STATIONNEMENT
     DetectionStep:
       properties:
         name:
@@ -685,3 +685,27 @@ components:
       enum:
         - GEO_JSON
         - ZIP
+    ImageDetails:
+      allOf:
+        - $ref: '#/components/schemas/ImageOfAddress'
+      properties:
+        minTileCoordinates:
+          $ref: '#/components/schemas/TileCoordinates'
+        currentGeoPosition:
+          $ref: '#/components/schemas/GeoPosition'
+    GeoPosition:
+      type: object
+      properties:
+        longitude:
+          type: number
+        latitude:
+          type: number
+    TileCoordinates:
+      type: object
+      properties:
+        x:
+          type: integer
+        y:
+          type: integer
+        z:
+          type: integer

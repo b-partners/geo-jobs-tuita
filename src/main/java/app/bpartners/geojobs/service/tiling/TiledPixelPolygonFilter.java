@@ -33,7 +33,7 @@ public class TiledPixelPolygonFilter {
                           })
                       .toList();
               return new TiledPixelPolygon(
-                  tiledPixelPolygon.point(),
+                  tiledPixelPolygon.feature(),
                   filteredGeoPolygons,
                   tiledPixelPolygon.tileX(),
                   tiledPixelPolygon.tileY(),

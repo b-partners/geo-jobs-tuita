@@ -9,7 +9,8 @@ Resources:
   MailboxQueue1:
     Type: AWS::SQS::Queue
     Properties:
-      QueueName: !Join [ '' , [ !Ref Env , -1-geo-jobs-tuita ] ]
+      QueueName: !Join ['' , [!Ref Env , -1-geo-jobs-tuita]]
+
       VisibilityTimeout: 901 #note(sqs-visibility): WorkerFunction1.Timeout + 1
       RedrivePolicy:
         deadLetterTargetArn: !GetAtt DeadLetterQueue1.Arn
@@ -49,7 +50,7 @@ Resources:
   DeadLetterQueue1:
     Type: AWS::SQS::Queue
     Properties:
-      QueueName: !Join [ '' , [ !Ref Env , -1-geo-jobs-tuita-dl ] ]
+      QueueName:  !Join ['' , [!Ref Env , -1-geo-jobs-tuita-dl]]
       SqsManagedSseEnabled: false
 
   DeadLetterQueue2:
@@ -195,14 +196,14 @@ Resources:
   MailboxQueue1SSM:
     Type: AWS::SSM::Parameter
     Properties:
-      Name: !Join [ '' , [ /geo-jobs-tuita/ , !Ref Env , /1/sqs/mailbox-queue-url ] ]
+      Name: !Join ['' , [/geo-jobs-tuita/ , !Ref Env , /1/sqs/mailbox-queue-url]]
       Type: String
       Value: !Ref MailboxQueue1
 
   MailboxQueue1SSMArn:
     Type: AWS::SSM::Parameter
     Properties:
-      Name: !Join [ '' , [ /geo-jobs-tuita/ , !Ref Env , /1/sqs/mailbox-queue-arn ] ]
+      Name: !Join ['' , [/geo-jobs-tuita/ , !Ref Env , /1/sqs/mailbox-queue-arn]]
       Type: String
       Value: !GetAtt MailboxQueue1.Arn
 
@@ -251,7 +252,7 @@ Resources:
   DeadLetterQueue1SSM:
     Type: AWS::SSM::Parameter
     Properties:
-      Name: !Join [ '' , [ /geo-jobs-tuita/ , !Ref Env , /1/sqs/dead-letter-queue-url ] ]
+      Name: !Join ['' , [/geo-jobs-tuita/ , !Ref Env , /1/sqs/dead-letter-queue-url]]
       Type: String
       Value: !Ref DeadLetterQueue1
 
@@ -307,25 +308,25 @@ Resources:
   EventBridgeBus:
     Type: AWS::Events::EventBus
     Properties:
-      Name: !Join [ '', [ !Ref Env, -geo-jobs-tuita ] ]
+      Name: !Join ['', [!Ref Env, -geo-jobs-tuita]]
 
   EventBridgeArchive:
     Type: AWS::Events::Archive
     Properties:
-      ArchiveName: !Join [ '', [ !Ref Env, -geo-jobs-tuita, -archive ] ]
+      ArchiveName: !Join ['', [!Ref Env, -geo-jobs-tuita, -archive]]
       SourceArn: !GetAtt EventBridgeBus.Arn
 
   EventBridgeRule1:
     Type: AWS::Events::Rule
     Properties:
-      Name: !Join [ '', [ !Ref Env, -1-geo-jobs-tuita, -from-api-to-api ] ]
+      Name: !Join ['', [!Ref Env, -1-geo-jobs-tuita, -from-api-to-api]]
       EventBusName: !GetAtt EventBridgeBus.Name
       EventPattern:
         source:
           - app.bpartners.geojobs.event1
       Targets:
         - Arn: !GetAtt MailboxQueue1.Arn
-          Id: !Join [ '', [ !Ref Env, -1-geo-jobs-tuita, -api-mailbox ] ]
+          Id: !Join ['', [!Ref Env, -1-geo-jobs-tuita, -api-mailbox]]
 
   EventBridgeRule2:
     Type: AWS::Events::Rule
@@ -366,7 +367,7 @@ Resources:
   EventBridgeBusNameSSM:
     Type: AWS::SSM::Parameter
     Properties:
-      Name: !Join [ '',[ /geo-jobs-tuita/ , !Ref Env , /eventbridge/bus-name ] ]
+      Name: !Join ['',[/geo-jobs-tuita/ , !Ref Env , /eventbridge/bus-name]]
       Type: String
       Value: !GetAtt EventBridgeBus.Name
 

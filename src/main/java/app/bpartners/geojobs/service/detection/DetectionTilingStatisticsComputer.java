@@ -3,7 +3,6 @@ package app.bpartners.geojobs.service.detection;
 import static app.bpartners.geojobs.endpoint.rest.model.DetectionStepName.TILING;
 
 import app.bpartners.geojobs.endpoint.rest.mapper.DetectionFromStatisticRestMapper;
-import app.bpartners.geojobs.job.model.statistic.TaskStatistic;
 import app.bpartners.geojobs.repository.model.detection.Detection;
 import app.bpartners.geojobs.service.tiling.ZoneTilingJobService;
 import java.util.function.BiFunction;
@@ -20,10 +19,6 @@ public class DetectionTilingStatisticsComputer
   @Override
   public app.bpartners.geojobs.endpoint.rest.model.Detection apply(
       Detection detection, String tilingJobId) {
-    if (detection.isRooferMade()) {
-      TaskStatistic statistics = zoneTilingJobService.getTaskStatistic(tilingJobId);
-      return detectionFromStatisticRestMapper.apply(detection, statistics, TILING);
-    }
     return detectionFromStatisticRestMapper.apply(
         detection, zoneTilingJobService.computeTaskStatistics(tilingJobId), TILING);
   }

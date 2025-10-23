@@ -71,6 +71,9 @@ public enum ObjectType {
               PANNEAU_PHOTOVOLTAIQUE,
               PISCINE,
               ARBRE,
+              ARBRE_INDIVIDUALISE,
+              CANOPE,
+              ESPACE_ARBORE,
               ESPACE_VERT,
               VOIE_CARROSSABLE,
               PARKING,
@@ -89,7 +92,17 @@ public enum ObjectType {
               BATI_BETON,
               BATI_ARDOISE,
               BATI_AUTRES,
+              BATI,
               BACKGROUND,
+              SURFACES_ARTIFICIALISEES,
+              SURFACES_PERMEABLES,
+              PISTES_CYCLABLES,
+              SYMBOLES_CYCLABLES,
+              MARQUAGES_VOIRIES,
+              CIMETIERE,
+              TOMBE_SIMPLE,
+              TOMBE_DOUBLE,
+              TOMBE_NON_GEOMETRIQUE,
               ROAD ->
           throw new IllegalArgumentException("Unsupported continuation on " + detectableType);
     };

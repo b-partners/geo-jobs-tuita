@@ -20,6 +20,8 @@ import app.bpartners.geojobs.endpoint.event.model.parcel.ParcelDetectionTaskCrea
 import app.bpartners.geojobs.endpoint.event.model.status.ZDJStatusRecomputingSubmitted;
 import app.bpartners.geojobs.endpoint.rest.controller.mapper.ZoneDetectionJobMapper;
 import app.bpartners.geojobs.endpoint.rest.model.*;
+import app.bpartners.geojobs.endpoint.rest.security.authorizer.DetectionAuthorizer;
+import app.bpartners.geojobs.endpoint.rest.security.model.Principal;
 import app.bpartners.geojobs.job.model.JobStatus;
 import app.bpartners.geojobs.job.repository.JobStatusRepository;
 import app.bpartners.geojobs.model.page.BoundedPageSize;
@@ -38,14 +40,18 @@ import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
+import java.util.UUID;
 import java.util.stream.Collectors;
 import lombok.extern.slf4j.Slf4j;
 import org.jetbrains.annotations.NotNull;
 import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.mock.mockito.MockBean;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.transaction.annotation.Transactional;
 
 @Slf4j
@@ -65,6 +71,7 @@ class ZoneDetectionJobControllerIT extends FacadeIT {
   @MockBean EventProducer eventProducer;
   @MockBean AnnotationService annotationServiceMock;
   @MockBean HumanDetectionJobRepository humanDetectionJobRepositoryMock;
+  @MockBean DetectionAuthorizer detectionAuthorizer;
   SpecificDetectionTaskCreator specificDetectionTaskCreator = new SpecificDetectionTaskCreator();
 
   ZoneDetectionJobControllerIT() {
@@ -129,6 +136,14 @@ class ZoneDetectionJobControllerIT extends FacadeIT {
   @NotNull
   private List<ParcelDetectionTask> randomDetectionTasks(String jobId) {
     return List.of(detectionTask1(jobId), detectionTask2(jobId));
+  }
+
+  @BeforeEach
+  void setUpSecurityContext() {
+    Principal principal = mock(Principal.class);
+    when(principal.getPassword()).thenReturn("dummy-api-key");
+    SecurityContextHolder.getContext()
+        .setAuthentication(new UsernamePasswordAuthenticationToken(principal, null));
   }
 
   @AfterEach
@@ -295,5 +310,26 @@ class ZoneDetectionJobControllerIT extends FacadeIT {
     assertNotNull(actualParcel.getParcelId());
 
     parcelDetectionTaskRepository.delete(savedTask);
+  }
+
+  @Test
+  void process_detection_with_empty_geojson_zone() {
+    var detectionId = UUID.randomUUID().toString();
+    var detectionCreation =
+        new CreateDetection()
+            .detectableObjectModel(new DetectableObjectModel().modelName(ModelName.TOITURE))
+            .zoneName("emptyZoneName")
+            .emailReceiver("john@mail.com")
+            .geoJsonZone(null);
+
+    var actual = subject.processDetection(detectionId, detectionCreation);
+
+    assertEquals(detectionId, actual.getId());
+    assertEquals("emptyZoneName", actual.getZoneName());
+    assertEquals("john@mail.com", actual.getEmailReceiver());
+    assertEquals(DetectionStepName.REQUEST_ACCEPTED, actual.getStep().getName());
+    assertEquals(Status.ProgressionEnum.PENDING, actual.getStep().getStatus().getProgression());
+    assertEquals(Status.HealthEnum.UNKNOWN, actual.getStep().getStatus().getHealth());
+    assertTrue(actual.getGeoJsonZone() != null && actual.getGeoJsonZone().isEmpty());
   }
 }

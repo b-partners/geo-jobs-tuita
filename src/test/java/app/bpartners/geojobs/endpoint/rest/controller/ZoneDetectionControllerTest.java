@@ -1,5 +1,6 @@
 package app.bpartners.geojobs.endpoint.rest.controller;
 
+import static app.bpartners.geojobs.endpoint.rest.model.DetectionStepName.REQUEST_ACCEPTED;
 import static app.bpartners.geojobs.endpoint.rest.security.model.Authority.Role.ROLE_ADMIN;
 import static app.bpartners.geojobs.job.model.Status.HealthStatus.FAILED;
 import static app.bpartners.geojobs.job.model.Status.HealthStatus.RETRYING;
@@ -36,6 +37,7 @@ import app.bpartners.geojobs.job.model.statistic.HealthStatusStatistic;
 import app.bpartners.geojobs.job.model.statistic.TaskStatistic;
 import app.bpartners.geojobs.job.model.statistic.TaskStatusStatistic;
 import app.bpartners.geojobs.model.exception.BadRequestException;
+import app.bpartners.geojobs.model.exception.NotImplementedException;
 import app.bpartners.geojobs.repository.CommunityAuthorizationRepository;
 import app.bpartners.geojobs.repository.DetectableObjectConfigurationRepository;
 import app.bpartners.geojobs.repository.model.GeoJobType;
@@ -50,7 +52,6 @@ import app.bpartners.geojobs.service.ParcelService;
 import app.bpartners.geojobs.service.ZoneService;
 import app.bpartners.geojobs.service.detection.ZoneDetectionJobService;
 import app.bpartners.geojobs.service.geojson.GeoJsonConversionJobService;
-import java.math.BigDecimal;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
@@ -286,20 +287,44 @@ class ZoneDetectionControllerTest {
 
   @Test
   void configureRoofDelimiter_ok() {
-    var expectedDetection = mock(Detection.class);
-    var roofDelimiter = mock(RoofDelimiter.class);
-    var principal = mock(Principal.class);
-    List<List<BigDecimal>> roofDelimitation = mock();
+    var actualException =
+        assertThrows(
+            NotImplementedException.class,
+            () -> subject.configureDetectionRoofDelimiter("detectionId", new RoofDelimiter()));
 
-    when(authProviderMock.getPrincipal()).thenReturn(principal);
-    when(principal.getPassword()).thenReturn("api-key");
-    when(roofDelimiter.getPolygon()).thenReturn(roofDelimitation);
-    when(communityAuthRepositoryMock.findByApiKey("api-key")).thenReturn(Optional.of(mock()));
-    when(zoneServiceMock.configureRoofDelimiter(any(), any(), any())).thenReturn(expectedDetection);
+    assertEquals(
+        "POST /detections/{id}/roofDelimiter not supported anymore.", actualException.getMessage());
+  }
 
-    var actual = subject.configureDetectionRoofDelimiter("detectionId", roofDelimiter);
+  @Test
+  void updateDetectionStep_ok() {
+    var detectionMock = mock(Detection.class);
+    when(zoneServiceMock.updateDetectionStep(anyString(), anyString(), any(DetectionStep.class)))
+        .thenReturn(detectionMock);
 
-    assertEquals(expectedDetection, actual);
+    Detection actual =
+        subject.updateCommunityDetectionStep(
+            randomUUID().toString(),
+            randomUUID().toString(),
+            new DetectionStep().name(REQUEST_ACCEPTED));
+
+    assertNotNull(actual);
+    assertEquals(detectionMock, actual);
+  }
+
+  @Test
+  void configureDetectionAddresses_ok() {
+    var addresses = List.of(new Address().address("dummyAddress"));
+    var addressesStrings = addresses.stream().map(Address::getAddress).toList();
+    when(zoneServiceMock.configureDetectionAddresses(anyString(), any()))
+        .thenReturn(new Detection().addresses(addressesStrings));
+
+    Detection actual = subject.configureDetectionAddresses("detectionId", addresses);
+
+    assertNotNull(actual);
+    assertEquals(addressesStrings, actual.getAddresses());
+
+    verify(zoneServiceMock).configureDetectionAddresses("detectionId", addressesStrings);
   }
 
   private static app.bpartners.geojobs.repository.model.detection.ZoneDetectionJob aZDJ(

@@ -10,7 +10,7 @@ import app.bpartners.geojobs.model.geometry.PolygonObjectType;
 import app.bpartners.geojobs.repository.model.detection.DetectableType;
 import app.bpartners.geojobs.repository.model.detection.DetectedObject;
 import app.bpartners.geojobs.service.geojson.GeometryConverter;
-import java.util.Set;
+import java.util.Collection;
 import org.locationtech.jts.geom.Polygon;
 
 public class UsureAreaRateComputer extends AreaRateComputer {
@@ -18,7 +18,7 @@ public class UsureAreaRateComputer extends AreaRateComputer {
   private final FeatureMapper featureMapper = new FeatureMapper(new GeometryConverter(null));
   private final double roofArea;
   private final DetectedTile tile;
-  private final Set<PolygonObjectType> polygonObjectTypes;
+  private final Collection<PolygonObjectType> polygonObjectTypes;
 
   public UsureAreaRateComputer(double roofArea, DetectedTile tile) {
     this.roofArea = roofArea;
@@ -26,7 +26,7 @@ public class UsureAreaRateComputer extends AreaRateComputer {
     this.polygonObjectTypes = null;
   }
 
-  public UsureAreaRateComputer(double roofArea, Set<PolygonObjectType> polygonObjectTypes) {
+  public UsureAreaRateComputer(double roofArea, Collection<PolygonObjectType> polygonObjectTypes) {
     this.roofArea = roofArea;
     this.polygonObjectTypes = polygonObjectTypes;
     this.tile = null;

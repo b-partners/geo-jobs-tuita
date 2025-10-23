@@ -4,4 +4,7 @@ import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 
 @JsonIgnoreProperties(ignoreUnknown = true)
 public record AreaPictureDetails(
-    String id, AreaPictureMapLayer actualLayer, GeoPosition currentGeoPosition) {}
+    String id,
+    AreaPictureMapLayer actualLayer,
+    GeoPosition currentGeoPosition,
+    TileCoordinates referenceTile) {}

@@ -1,6 +1,6 @@
 package app.bpartners.geojobs.service.event;
 
-import static app.bpartners.geojobs.endpoint.event.EventStack.EVENT_STACK_2;
+import static app.bpartners.geojobs.endpoint.event.EventStack.EVENT_STACK_4;
 import static app.bpartners.geojobs.endpoint.rest.model.ModelName.TOITURE;
 import static app.bpartners.geojobs.repository.model.detection.DetectableType.*;
 import static java.util.UUID.randomUUID;
@@ -256,7 +256,7 @@ class ZoneDetectionJobSucceededServiceTest {
     verify(eventProducerMock, times(1)).accept(listCaptor.capture());
     var actualZoneVggRequested = (ZoneVggRequested) listCaptor.getAllValues().getLast().getFirst();
     assertEquals(new ZoneVggRequested(detectionId), actualZoneVggRequested);
-    assertEquals(EVENT_STACK_2, actualZoneVggRequested.getEventStack());
+    assertEquals(EVENT_STACK_4, actualZoneVggRequested.getEventStack());
     assertEquals(Duration.ofSeconds(30L), actualZoneVggRequested.maxConsumerDuration());
     assertEquals(
         Duration.ofSeconds(30L), actualZoneVggRequested.maxConsumerBackoffBetweenRetries());

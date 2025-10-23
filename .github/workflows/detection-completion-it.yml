@@ -1,6 +1,8 @@
 name: Detection completion verification IT
 
+
 on: [ ]
+
 
 env:
   API_URL: ${{ secrets.DETECTION_API_URL }}

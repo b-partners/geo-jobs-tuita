@@ -114,7 +114,7 @@ public class FeatureMapper {
     return featureDomain;
   }
 
-  private static Geometry.TypeEnum getGeometryType(Object actualInstance) {
+  public static Geometry.TypeEnum getGeometryType(Object actualInstance) {
     var clazz = actualInstance.getClass();
     if (clazz.equals(MultiPolygon.class)) {
       return Geometry.TypeEnum.MULTI_POLYGON;
@@ -249,9 +249,9 @@ public class FeatureMapper {
     return feature;
   }
 
-  public org.locationtech.jts.geom.Polygon domainToJtsPolygon(
+  public org.locationtech.jts.geom.Geometry domainToGeometry(
       app.bpartners.geojobs.repository.model.Feature domainFeature) {
     var rest = toRestFeature(domainFeature);
-    return toDomainPolygon(rest);
+    return toDomainGeometry(rest);
   }
 }

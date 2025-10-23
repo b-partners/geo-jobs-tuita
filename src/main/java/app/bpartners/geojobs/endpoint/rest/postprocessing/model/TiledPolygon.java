@@ -130,7 +130,7 @@ public record TiledPolygon(
       TilingConf tilingConf,
       boolean isZXYDotFiletype) {
     var shapeAttribute = vggRegion.getShapeAttribute();
-    var label = vggRegion.getRegionAttribute().getLabel();
+    var label = vggRegion.getRegionAttribute().get("label").toString();
     var coordsExtractor = new TileCoordinatesFromFileName(isZXYDotFiletype);
     var originTile = new IntXY(coordsExtractor.x(filename), coordsExtractor.y(filename));
     var polygon = polygon(shapeAttribute);

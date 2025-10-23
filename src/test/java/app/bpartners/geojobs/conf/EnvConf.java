@@ -36,6 +36,9 @@ public class EnvConf {
     registry.add("readme.webhook.secret", () -> "the-readme-webhook-secret");
     registry.add("bpartners.api.url", () -> "http://dummy.com");
     registry.add("geoserver.api.url", () -> "http://dummy-geoserver.com");
+    registry.add(
+        "roof.covering.detection.api.url",
+        () -> "https://dyp5ye459j.execute-api.eu-west-3.amazonaws.com/Prod");
     registry.add("ign.lidar.api.url", () -> LIDAR_API_URL);
   }
 }

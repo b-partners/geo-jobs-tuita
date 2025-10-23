@@ -91,8 +91,8 @@ class FeatureMapperTest {
 
   @Test
   void feature_to_geo_tools_polygon_mapper_with_null_zoom_ok() {
-    var polygon = subject.domainToJtsPolygon(toDomainFeature(expectedFeature()));
+    var multipolygon = subject.domainToGeometry(toDomainFeature(expectedFeature()));
 
-    assertEquals(expectedPolygon(), polygon);
+    assertEquals(expectedPolygon(), multipolygon.getGeometryN(0));
   }
 }

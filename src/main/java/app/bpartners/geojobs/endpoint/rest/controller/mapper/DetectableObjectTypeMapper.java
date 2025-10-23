@@ -7,7 +7,6 @@ import static app.bpartners.geojobs.endpoint.rest.model.DetectableObjectType.USU
 import static java.util.UUID.randomUUID;
 
 import app.bpartners.geojobs.endpoint.rest.model.*;
-import app.bpartners.geojobs.model.exception.NotImplementedException;
 import app.bpartners.geojobs.repository.model.detection.DetectableObjectConfiguration;
 import app.bpartners.geojobs.repository.model.detection.DetectableType;
 import java.util.ArrayList;
@@ -22,35 +21,51 @@ public class DetectableObjectTypeMapper {
 
   public DetectableType toDomain(DetectableObjectType rest) {
     return switch (rest) {
-      case PISCINE -> DetectableType.PISCINE;
       case TOITURE_REVETEMENT -> DetectableType.TOITURE_REVETEMENT;
-      case ARBRE -> DetectableType.ARBRE;
-      case PASSAGE_PIETON -> DetectableType.PASSAGE_PIETON;
       case PANNEAU_PHOTOVOLTAIQUE -> DetectableType.PANNEAU_PHOTOVOLTAIQUE;
+      case PISCINE -> DetectableType.PISCINE;
+      case PASSAGE_PIETON -> DetectableType.PASSAGE_PIETON;
+      case ARBRE -> DetectableType.ARBRE;
+      case ARBRE_INDIVIDUALISE -> DetectableType.ARBRE_INDIVIDUALISE;
+      case CANOPE -> DetectableType.CANOPE;
       case TROTTOIR -> DetectableType.TROTTOIR;
       case LINE -> DetectableType.LINE;
+      case ESPACE_ARBORE -> DetectableType.ESPACE_ARBORE;
       case ESPACE_VERT -> DetectableType.ESPACE_VERT;
       case VOIE_CARROSSABLE -> DetectableType.VOIE_CARROSSABLE;
-      case MOISISSURE_CLAIR -> DetectableType.MOISISSURE_CLAIR;
+      case PARKING -> DetectableType.PARKING;
       case MOISISSURE_COULEUR -> DetectableType.MOISISSURE_COULEUR;
+      case MOISISSURE_CLAIR -> DetectableType.MOISISSURE_CLAIR;
       case MOISISSURE_NOIRCIE -> DetectableType.MOISISSURE_NOIRCIE;
       case MOISISSURE -> DetectableType.MOISISSURE;
-      case USURE_IMPORTANTE -> DetectableType.USURE_IMPORTANTE;
       case USURE_LEGER -> DetectableType.USURE_LEGER;
+      case USURE_IMPORTANTE -> DetectableType.USURE_IMPORTANTE;
       case USURE -> DetectableType.USURE;
       case FISSURE_CASSURE -> DetectableType.FISSURE_CASSURE;
       case OBSTACLE -> DetectableType.OBSTACLE;
       case CHEMINEE -> DetectableType.CHEMINEE;
-      case HUMIDITE_INTENSE -> DetectableType.HUMIDITE_INTENSE;
       case HUMIDITE_CLAIR -> DetectableType.HUMIDITE_CLAIR;
+      case HUMIDITE_INTENSE -> DetectableType.HUMIDITE_INTENSE;
       case HUMIDITE -> DetectableType.HUMIDITE;
       case RISQUE_FEU -> DetectableType.RISQUE_FEU;
       case VELUX -> DetectableType.VELUX;
-      case PARKING -> DetectableType.PARKING;
+      case BATI_TUILES -> DetectableType.BATI_TUILES;
+      case BATI_BETON -> DetectableType.BATI_BETON;
+      case BATI_ARDOISE -> DetectableType.BATI_ARDOISE;
+      case BATI_AUTRES -> DetectableType.BATI_AUTRES;
+      case BATI -> DetectableType.BATI;
       case ESPACE_VERT_PARKING -> DetectableType.ESPACE_VERT_PARKING;
       case BACKGROUND -> DetectableType.BACKGROUND;
       case ROAD -> DetectableType.ROAD;
-      default -> throw new NotImplementedException("Unknown detectable object type " + rest);
+      case SURFACES_ARTIFICIALISEES -> DetectableType.SURFACES_ARTIFICIALISEES;
+      case SURFACES_PERMEABLES -> DetectableType.SURFACES_PERMEABLES;
+      case PISTES_CYCLABLES -> DetectableType.PISTES_CYCLABLES;
+      case SYMBOLES_CYCLABLES -> DetectableType.SYMBOLES_CYCLABLES;
+      case MARQUAGES_VOIRIES -> DetectableType.MARQUAGES_VOIRIES;
+      case CIMETIERE -> DetectableType.CIMETIERE;
+      case TOMBE_SIMPLE -> DetectableType.TOMBE_SIMPLE;
+      case TOMBE_DOUBLE -> DetectableType.TOMBE_DOUBLE;
+      case TOMBE_NON_GEOMETRIQUE -> DetectableType.TOMBE_NON_GEOMETRIQUE;
     };
   }
 
@@ -89,6 +104,19 @@ public class DetectableObjectTypeMapper {
       case TOMBE -> null;
       case ESPACE_VERT_PARKING -> ESPACE_VERT_PARKING;
       case BACKGROUND -> BACKGROUND;
+      case ARBRE_INDIVIDUALISE -> ARBRE_INDIVIDUALISE;
+      case CANOPE -> CANOPE;
+      case ESPACE_ARBORE -> ESPACE_ARBORE;
+      case BATI -> BATI;
+      case SURFACES_ARTIFICIALISEES -> SURFACES_ARTIFICIALISEES;
+      case SURFACES_PERMEABLES -> SURFACES_PERMEABLES;
+      case PISTES_CYCLABLES -> PISTES_CYCLABLES;
+      case SYMBOLES_CYCLABLES -> SYMBOLES_CYCLABLES;
+      case MARQUAGES_VOIRIES -> MARQUAGES_VOIRIES;
+      case CIMETIERE -> CIMETIERE;
+      case TOMBE_SIMPLE -> TOMBE_SIMPLE;
+      case TOMBE_DOUBLE -> TOMBE_DOUBLE;
+      case TOMBE_NON_GEOMETRIQUE -> TOMBE_NON_GEOMETRIQUE;
     };
   }
 
@@ -105,8 +133,14 @@ public class DetectableObjectTypeMapper {
       case ZAN -> objectTypes.addAll(detectableObjectTypeForZanModel());
       case CLIMAT_RESILIENCE -> objectTypes.addAll(detectableObjectTypeForClimatResilienceModel());
       case CONFIRMITE_PLU -> objectTypes.addAll(detectableObjectTypeForConformitePluModel());
-      case TROTTOIRS -> objectTypes.addAll(detectableObjectTypeForTrottoirsModel());
+      case VOIRIE_TROTTOIRS -> objectTypes.addAll(detectableObjectTypeForVoirieTrottoirsModel());
       case OLD -> objectTypes.addAll(detectableObjectTypeForOldModel());
+      case CYCL -> objectTypes.addAll(detectableObjectTypeForCyclModel());
+      case SIGN -> objectTypes.addAll(detectableObjectTypeForSignModel());
+      case VEGETATION -> objectTypes.addAll(detectableObjectTypeForVegetationModel());
+      case TAMPONS -> objectTypes.addAll(detectableObjectTypeForTamponsModel());
+      case CIMETIERE -> objectTypes.addAll(detectableObjectTypeForCimetiereModel());
+      case STATIONNEMENT -> objectTypes.addAll(detectableObjectTypeForStationnementModel());
     }
     return objectTypes;
   }
@@ -114,6 +148,7 @@ public class DetectableObjectTypeMapper {
   public static List<DetectableObjectType> detectableObjectTypeForToitureModel() {
     List<DetectableObjectType> objectTypes = new ArrayList<>();
     objectTypes.add(TOITURE_REVETEMENT);
+    // objectTypes.add(ARBRE);
     objectTypes.add(PANNEAU_PHOTOVOLTAIQUE);
     objectTypes.add(MOISISSURE_NOIRCIE);
     objectTypes.add(MOISISSURE_CLAIR);
@@ -122,60 +157,48 @@ public class DetectableObjectTypeMapper {
     objectTypes.add(USURE_IMPORTANTE);
     objectTypes.add(USURE_LEGER);
     objectTypes.add(USURE);
+    // objectTypes.add(FISSURE_CASSURE);
     objectTypes.add(OBSTACLE);
     objectTypes.add(CHEMINEE);
     objectTypes.add(HUMIDITE_INTENSE);
     objectTypes.add(HUMIDITE_CLAIR);
     objectTypes.add(HUMIDITE);
+    // objectTypes.add(RISQUE_FEU);
     objectTypes.add(VELUX);
     return objectTypes;
   }
 
   private List<DetectableObjectType> detectableObjectTypeForLomModel() {
-    List<DetectableObjectType> objectTypes = new ArrayList<>();
-    objectTypes.add(PASSAGE_PIETON);
-    objectTypes.add(TROTTOIR);
-    objectTypes.add(VOIE_CARROSSABLE);
-    return objectTypes;
+    return List.of(PASSAGE_PIETON);
   }
 
   private List<DetectableObjectType> detectableObjectTypeForClimatResilienceModel() {
     List<DetectableObjectType> objectTypes = new ArrayList<>();
     objectTypes.add(PARKING);
     objectTypes.add(PANNEAU_PHOTOVOLTAIQUE);
-    objectTypes.add(ARBRE);
-    objectTypes.add(ESPACE_VERT);
     return objectTypes;
   }
 
   private List<DetectableObjectType> detectableObjectTypeForZanModel() {
     List<DetectableObjectType> objectTypes = new ArrayList<>();
-    objectTypes.add(ARBRE);
-    objectTypes.add(ESPACE_VERT);
-    objectTypes.add(TOITURE_REVETEMENT);
-    objectTypes.add(VOIE_CARROSSABLE);
-    objectTypes.add(TROTTOIR);
-    objectTypes.add(PARKING);
+    objectTypes.add(SURFACES_ARTIFICIALISEES);
+    objectTypes.add(SURFACES_PERMEABLES);
     return objectTypes;
   }
 
   private List<DetectableObjectType> detectableObjectTypeForConformitePluModel() {
     List<DetectableObjectType> objectTypes = new ArrayList<>();
-    objectTypes.add(TOITURE_REVETEMENT);
-    objectTypes.add(ARBRE);
+    objectTypes.add(BATI);
     objectTypes.add(VELUX);
     objectTypes.add(PANNEAU_PHOTOVOLTAIQUE);
-    objectTypes.add(ESPACE_VERT);
     objectTypes.add(PISCINE);
     return objectTypes;
   }
 
-  private List<DetectableObjectType> detectableObjectTypeForTrottoirsModel() {
+  private List<DetectableObjectType> detectableObjectTypeForVoirieTrottoirsModel() {
     List<DetectableObjectType> objectTypes = new ArrayList<>();
     objectTypes.add(TROTTOIR);
     objectTypes.add(VOIE_CARROSSABLE);
-    objectTypes.add(ARBRE);
-    objectTypes.add(ESPACE_VERT_PARKING);
     return objectTypes;
   }
 
@@ -183,12 +206,52 @@ public class DetectableObjectTypeMapper {
     List<DetectableObjectType> objectTypes = new ArrayList<>();
     objectTypes.add(ARBRE);
     objectTypes.add(ESPACE_VERT);
-    objectTypes.add(TOITURE_REVETEMENT);
     objectTypes.add(VOIE_CARROSSABLE);
     objectTypes.add(TROTTOIR);
     objectTypes.add(PARKING);
     objectTypes.add(RISQUE_FEU);
     return objectTypes;
+  }
+
+  private List<DetectableObjectType> detectableObjectTypeForCyclModel() {
+    List<DetectableObjectType> objectTypes = new ArrayList<>();
+    objectTypes.add(PISTES_CYCLABLES);
+    objectTypes.add(SYMBOLES_CYCLABLES);
+    return objectTypes;
+  }
+
+  private List<DetectableObjectType> detectableObjectTypeForSignModel() {
+    return List.of(MARQUAGES_VOIRIES);
+  }
+
+  private List<DetectableObjectType> detectableObjectTypeForVegetationModel() {
+    List<DetectableObjectType> objectTypes = new ArrayList<>();
+    objectTypes.add(ESPACE_VERT);
+    objectTypes.add(ESPACE_ARBORE);
+    objectTypes.add(ARBRE_INDIVIDUALISE);
+    objectTypes.add(CANOPE);
+    return objectTypes;
+  }
+
+  private List<DetectableObjectType> detectableObjectTypeForTamponsModel() {
+    // TODO: not implemented
+    return new ArrayList<>();
+  }
+
+  private List<DetectableObjectType> detectableObjectTypeForCimetiereModel() {
+    List<DetectableObjectType> objectTypes = new ArrayList<>();
+    objectTypes.add(ESPACE_VERT);
+    objectTypes.add(ESPACE_ARBORE);
+    objectTypes.add(CIMETIERE);
+    objectTypes.add(TOMBE_SIMPLE);
+    objectTypes.add(TOMBE_DOUBLE);
+    objectTypes.add(TOMBE_NON_GEOMETRIQUE);
+    return objectTypes;
+  }
+
+  private List<DetectableObjectType> detectableObjectTypeForStationnementModel() {
+    // TODO: not implemented
+    return new ArrayList<>();
   }
 
   public List<DetectableObjectConfiguration> mapDefaultConfigurationsFromModel(

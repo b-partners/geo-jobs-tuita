@@ -14,13 +14,17 @@ public class GeoServerConfiguration {
   }
 
   public GeoServerProperties defaultGeoServerProperties(String layer) {
+    var overrideLayer =
+        layer == null
+            ? layer
+            : layer.contains("Auvergne_Rhone_Alpes") ? "Auvergne_Rhone_Alpes_PCRS_5cm" : layer;
     return new GeoServerProperties()
         .geoServerUrl(url)
         .geoServerParameter(
             new GeoServerParameter()
                 .service("WMS")
                 .request("GetMap")
-                .layers(layer)
+                .layers(overrideLayer)
                 .styles("")
                 .format("image/jpeg")
                 .transparent(true)

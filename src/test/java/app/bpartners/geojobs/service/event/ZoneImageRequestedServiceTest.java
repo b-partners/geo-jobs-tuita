@@ -1,14 +1,17 @@
 package app.bpartners.geojobs.service.event;
 
 import static java.util.UUID.randomUUID;
+import static javax.imageio.ImageIO.read;
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
+import static org.mockito.Mockito.mockStatic;
 
 import app.bpartners.geojobs.endpoint.event.model.ZoneImageRequested;
 import app.bpartners.geojobs.endpoint.rest.model.Feature;
 import app.bpartners.geojobs.endpoint.rest.model.FeatureGeometry;
 import app.bpartners.geojobs.endpoint.rest.model.Polygon;
+import app.bpartners.geojobs.file.WhiteImageDetector;
 import app.bpartners.geojobs.file.bucket.BucketComponent;
 import app.bpartners.geojobs.file.hash.FileHash;
 import app.bpartners.geojobs.repository.DetectionRepository;
@@ -22,12 +25,15 @@ import app.bpartners.geojobs.service.GeometrySquareMeterArea;
 import app.bpartners.geojobs.service.TileImageBlur;
 import app.bpartners.geojobs.service.TileImagesAssembler;
 import app.bpartners.geojobs.service.geojson.GeometryConverter;
+import java.awt.image.BufferedImage;
 import java.io.File;
 import java.math.BigDecimal;
 import java.util.List;
 import java.util.Optional;
+import javax.imageio.ImageIO;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.mockito.MockedStatic;
 
 class ZoneImageRequestedServiceTest {
   public static final double ONE_KILOMETRE_AREA = 1_000_000.0;
@@ -38,6 +44,7 @@ class ZoneImageRequestedServiceTest {
   TilingTaskRepository tilingTaskRepositoryMock = mock();
   GeometrySquareMeterArea geometrySquareMeterAreaMock = mock();
   TileImageBlur tileImageBlurMock = mock();
+  WhiteImageDetector whiteImageDetectorMock = mock();
   ZoneImageRequestedService subject =
       new ZoneImageRequestedService(
           detectionRepositoryMock,
@@ -46,11 +53,13 @@ class ZoneImageRequestedServiceTest {
           tileImageAssemblerMock,
           tilingTaskRepositoryMock,
           geometrySquareMeterAreaMock,
-          tileImageBlurMock);
+          tileImageBlurMock,
+          whiteImageDetectorMock);
 
   @BeforeEach
   void setUp() {
     when(tileImageBlurMock.apply(any(), any())).thenAnswer(invocation -> invocation.getArgument(1));
+    when(whiteImageDetectorMock.apply(any())).thenReturn(false);
   }
 
   @Test
@@ -89,6 +98,8 @@ class ZoneImageRequestedServiceTest {
     var assembleImageFileMock = mock(File.class);
     var randomBucketPath = randomUUID().toString();
 
+    MockedStatic<ImageIO> imageIOMockedStatic = mockStatic(ImageIO.class);
+    imageIOMockedStatic.when(() -> read(any(File.class))).thenReturn(mock(BufferedImage.class));
     when(detectionMock.getId()).thenReturn(detectionIdentifier);
     when(detectionMock.getZtjId()).thenReturn(tilingJobIdentifier);
     when(detectionMock.getPolygonGeoJsonZone())
@@ -132,5 +143,6 @@ class ZoneImageRequestedServiceTest {
     verify(tileImageAssemblerMock).apply(tilesWithImagesMock);
     verify(bucketComponentMock)
         .upload(assembleImageFileMock, "zone_images/" + detectionIdentifier + ".jpg");
+    imageIOMockedStatic.close();
   }
 }

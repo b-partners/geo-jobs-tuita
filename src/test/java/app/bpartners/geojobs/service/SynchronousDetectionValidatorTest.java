@@ -2,7 +2,7 @@ package app.bpartners.geojobs.service;
 
 import static app.bpartners.geojobs.endpoint.rest.model.Feature.TypeEnum.FEATURE;
 import static app.bpartners.geojobs.endpoint.rest.model.ModelName.TOITURE;
-import static app.bpartners.geojobs.endpoint.rest.model.ModelName.TROTTOIRS;
+import static app.bpartners.geojobs.endpoint.rest.model.ModelName.VOIRIE_TROTTOIRS;
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.*;
 
@@ -22,13 +22,13 @@ class SynchronousDetectionValidatorTest {
     var createDetectionMock = mock(CreateDetection.class);
     var detectableObjectModelMock = mock(DetectableObjectModel.class);
     when(createDetectionMock.getDetectableObjectModel()).thenReturn(detectableObjectModelMock);
-    when(detectableObjectModelMock.getModelName()).thenReturn(TROTTOIRS);
+    when(detectableObjectModelMock.getModelName()).thenReturn(VOIRIE_TROTTOIRS);
     NotImplementedException thrown =
         assertThrows(NotImplementedException.class, () -> subject.apply(createDetectionMock));
 
     assertTrue(
         thrown.getMessage().contains("Only BP_TOITURE detection model is supported for now"));
-    assertTrue(thrown.getMessage().contains("otherwise, model provided is " + TROTTOIRS));
+    assertTrue(thrown.getMessage().contains("otherwise, model provided is " + VOIRIE_TROTTOIRS));
 
     verify(createDetectionMock, times(1)).getDetectableObjectModel();
     verify(detectableObjectModelMock, times(1)).getModelName();

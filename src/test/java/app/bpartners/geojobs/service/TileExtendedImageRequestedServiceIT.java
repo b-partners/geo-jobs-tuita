@@ -1,5 +1,6 @@
 package app.bpartners.geojobs.service;
 
+import static app.bpartners.geojobs.endpoint.rest.model.Detection.GeoJsonDelimitationTypeEnum.ZONE;
 import static app.bpartners.geojobs.repository.model.ArcgisImageZoom.HOUSES_0;
 import static java.util.UUID.randomUUID;
 import static org.junit.jupiter.api.Assertions.*;
@@ -8,10 +9,7 @@ import static org.mockito.Mockito.*;
 
 import app.bpartners.geojobs.endpoint.event.model.TileExtendedImageRequested;
 import app.bpartners.geojobs.endpoint.rest.controller.mapper.FeatureMapper;
-import app.bpartners.geojobs.endpoint.rest.model.FeatureGeometry;
-import app.bpartners.geojobs.endpoint.rest.model.GeoServerParameter;
-import app.bpartners.geojobs.endpoint.rest.model.GeoServerProperties;
-import app.bpartners.geojobs.endpoint.rest.model.Polygon;
+import app.bpartners.geojobs.endpoint.rest.model.*;
 import app.bpartners.geojobs.file.bucket.BucketComponent;
 import app.bpartners.geojobs.file.hash.FileHash;
 import app.bpartners.geojobs.repository.DetectionRepository;
@@ -92,6 +90,7 @@ class TileExtendedImageRequestedServiceIT {
     var geometryFactory = new org.locationtech.jts.geom.GeometryFactory().createMultiPolygon(null);
 
     when(detectionMock.getId()).thenReturn(detectionIdentifier);
+    when(detectionMock.getGeoJsonDelimitationType()).thenReturn(ZONE);
     when(detectionMock.getFeatureWithDelimitations()).thenReturn(List.of(featureWithDelimitation));
     when(detectionMock.getGeoServerProperties())
         .thenReturn(

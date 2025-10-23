@@ -44,7 +44,7 @@ public class RoofDelimiterMapper {
   }
 
   public List<List<BigDecimal>> toRestPolygon(Feature feature) {
-    var jtsPolygon = featureMapper.domainToJtsPolygon(feature);
+    var jtsPolygon = featureMapper.domainToGeometry(feature);
     return Arrays.stream(jtsPolygon.getCoordinates())
         .map(
             coordinate ->

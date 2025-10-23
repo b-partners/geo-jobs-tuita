@@ -16,8 +16,6 @@ import app.bpartners.geojobs.endpoint.rest.model.TileCoordinates;
 import app.bpartners.geojobs.endpoint.rest.model.TileInfoSize;
 import app.bpartners.geojobs.endpoint.rest.postprocessing.GeoJsonLoader;
 import app.bpartners.geojobs.endpoint.rest.postprocessing.model.TilingConf;
-import app.bpartners.geojobs.file.ExtensionGuesser;
-import app.bpartners.geojobs.file.FileWriter;
 import app.bpartners.geojobs.model.DetectedTile;
 import app.bpartners.geojobs.repository.model.Feature;
 import app.bpartners.geojobs.repository.model.detection.DetectableObjectType;
@@ -28,7 +26,6 @@ import app.bpartners.geojobs.service.GeometryPixelProjector;
 import app.bpartners.geojobs.service.GeometrySquareMeterArea;
 import app.bpartners.geojobs.service.TileCoordinatesPolygonIntersection;
 import app.bpartners.geojobs.service.geojson.GeometryConverter;
-import app.bpartners.geojobs.service.tiling.TileFinder;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.io.File;
@@ -57,11 +54,9 @@ class VGGFactoryTest {
   GeometryConverter geometryConverter = new GeometryConverter(null);
   TileCoordinatesPolygonIntersection tileCoordinatesPolygonIntersection =
       new TileCoordinatesPolygonIntersection(new GeometryPixelProjector(), geometryConverter);
-  private final FeatureMapper featureMapper = new FeatureMapper(geometryConverter);
-  private final TileFinder tileFinder = new TileFinder();
+  FeatureMapper featureMapper = new FeatureMapper(geometryConverter);
   GeometrySquareMeterArea geometrySquareMeterArea = new GeometrySquareMeterArea();
   ObjectMapper objectMapper = new ObjectMapper().findAndRegisterModules();
-  FileWriter fileWriter = new FileWriter(objectMapper, new ExtensionGuesser());
 
   private final VGGFactory subject =
       new VGGFactory(
@@ -69,7 +64,7 @@ class VGGFactoryTest {
           tileCoordinatesPolygonIntersection,
           geometryConverter,
           geometrySquareMeterArea,
-          tileFinder);
+          objectMapper);
 
   public static DetectedTile detectedTile() {
     String humiditeGeometry =

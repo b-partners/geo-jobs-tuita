@@ -10,6 +10,8 @@ import static org.mockito.Mockito.when;
 import app.bpartners.geojobs.endpoint.rest.controller.mapper.DetectionStepStatisticMapper;
 import app.bpartners.geojobs.endpoint.rest.controller.mapper.RoofDelimiterMapper;
 import app.bpartners.geojobs.endpoint.rest.mapper.DetectionFromStatisticRestMapper;
+import app.bpartners.geojobs.endpoint.rest.mapper.DetectionFromStepMapper;
+import app.bpartners.geojobs.endpoint.rest.mapper.DetectionStepMapper;
 import app.bpartners.geojobs.file.bucket.BucketComponent;
 import app.bpartners.geojobs.repository.model.Feature;
 import app.bpartners.geojobs.repository.model.detection.Detection;
@@ -31,15 +33,18 @@ class DetectionFromStatisticRestMapperTest {
       mock(DetectionImageAttributeRetriever.class);
   DetectionVggAttributeRetriever vggAttributeRetrieverMock =
       mock(DetectionVggAttributeRetriever.class);
-
-  DetectionFromStatisticRestMapper subject =
-      new DetectionFromStatisticRestMapper(
+  DetectionFromStepMapper detectionFromStepMapperMock =
+      new DetectionFromStepMapper(
           bucketComponentMock,
-          detectionStepStatisticMapperMock,
           detectionFeaturesResultImageRetrieverMock,
           imageAttributeRetrieverMock,
           vggAttributeRetrieverMock,
+          new DetectionStepMapper(),
           roofDelimiterMapperMock);
+
+  DetectionFromStatisticRestMapper subject =
+      new DetectionFromStatisticRestMapper(
+          detectionFromStepMapperMock, detectionStepStatisticMapperMock);
 
   private static Detection detectionWithoutFeatureDelimitation() {
     return Detection.builder()

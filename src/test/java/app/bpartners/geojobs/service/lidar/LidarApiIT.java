@@ -1,19 +1,22 @@
 package app.bpartners.geojobs.service.lidar;
 
+import static app.bpartners.geojobs.model.geometry.GeometryFactory.geometryFactory;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
-import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 import static org.springframework.http.HttpStatus.OK;
 
 import app.bpartners.geojobs.conf.FacadeIT;
-import java.io.File;
+import app.bpartners.geojobs.service.lidar.api.FeatureCollection;
+import app.bpartners.geojobs.service.lidar.api.LidarApi;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import org.junit.jupiter.api.Test;
-import org.locationtech.jts.geom.Envelope;
+import org.locationtech.jts.geom.Coordinate;
+import org.locationtech.jts.geom.Geometry;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.http.ResponseEntity;
@@ -22,6 +25,8 @@ import org.springframework.web.client.RestTemplate;
 class LidarApiIT extends FacadeIT {
   @Autowired LidarApi subject;
   @MockBean RestTemplate restTemplate;
+
+  private static final String LIDAR_FILE_URL = "https://storage.sbg.cloud.ovh.net/dummy.laz";
 
   @Test
   void get_lidar_laz_file_urls_ok() {
@@ -32,21 +37,47 @@ class LidarApiIT extends FacadeIT {
                     .features(
                         List.of(
                             FeatureCollection.Feature.builder()
-                                .properties(
-                                    Map.of("url", "https://storage.sbg.cloud.ovh.net/dummy.laz"))
+                                .properties(Map.of("url", LIDAR_FILE_URL))
                                 .build()))
                     .build(),
                 OK));
-    when(restTemplate.getForEntity(any(String.class), eq(File.class)))
-        .thenReturn(new ResponseEntity<>(mock(File.class), OK));
 
+    var actual = subject.getUniqueLidarFilesUrls(Set.of(geometry1(), geometry2()));
+
+    assertTrue(actual.containsKey(LIDAR_FILE_URL));
+    assertEquals(1, actual.size());
+    assertEquals(2, actual.get(LIDAR_FILE_URL).size());
+  }
+
+  private static Geometry geometry1() {
+    var coordinates =
+        new Coordinate[] {
+          new Coordinate(3.243891733457616, 49.82448842864014),
+          new Coordinate(2.243947393505863, 48.82437718542337),
+          new Coordinate(2.244263463059525, 48.82456695311532),
+          new Coordinate(3.243891733457616, 49.82448842864014)
+        };
+    return geometryFactory.createPolygon(coordinates);
+  }
+
+  private static Geometry geometry2() {
+    var coordinates =
+        new Coordinate[] {
+          new Coordinate(2.243891733457616, 48.82448842864014),
+          new Coordinate(2.243947393505863, 48.82437718542337),
+          new Coordinate(2.244263463059525, 48.82456695311532),
+          new Coordinate(2.243891733457616, 48.82448842864014)
+        };
+    return geometryFactory.createPolygon(coordinates);
+  }
+
+  @Test
+  void download_should_return_correct_file() {
     when(restTemplate.getForObject(any(String.class), eq(byte[].class)))
         .thenReturn(new byte[] {1, 2, 3});
 
-    var randomBbox = new Envelope(635142.88, 635289.49, 6859875.04, 6859993.81);
+    var actual = subject.download(LIDAR_FILE_URL);
 
-    var actual = subject.apply(Set.of(randomBbox));
-
-    assertEquals(1, actual.size());
+    assertTrue(actual.isPresent());
   }
 }

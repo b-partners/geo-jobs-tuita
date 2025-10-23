@@ -3,7 +3,7 @@ package app.bpartners.geojobs.repository.model;
 import app.bpartners.geojobs.job.model.JobType;
 
 public enum GeoJobType implements JobType {
-  CONFIGURING,
+  REQUEST_ACCEPTED,
   TILING,
   DETECTION,
   PARCEL_DETECTION,

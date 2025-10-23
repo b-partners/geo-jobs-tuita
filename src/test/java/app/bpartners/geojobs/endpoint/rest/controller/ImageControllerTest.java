@@ -7,7 +7,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.*;
 
-import app.bpartners.geojobs.endpoint.rest.model.ImageOfAddress;
+import app.bpartners.geojobs.endpoint.rest.model.ImageDetails;
 import app.bpartners.geojobs.model.exception.ApiException;
 import app.bpartners.geojobs.service.dashboard.AreaPictureApi;
 import app.bpartners.geojobs.service.dashboard.FileApi;
@@ -47,7 +47,7 @@ class ImageControllerTest {
         .downloadOrUploadFile(stringCaptor.capture(), any(FileType.class), eq(adminApiKey));
     var fileIdGenerated = stringCaptor.getValue();
     assertEquals(
-        new ImageOfAddress().address(address).imageBase64("data:image/jpeg;base64,"), actual);
+        new ImageDetails().address(address).imageBase64("data:image/jpeg;base64,"), actual);
     assertNotNull(fileIdGenerated);
   }
 

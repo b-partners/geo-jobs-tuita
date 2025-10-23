@@ -5,7 +5,7 @@ import app.bpartners.geojobs.service.geojson.GeometryConverter;
 import java.math.BigDecimal;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
-import org.locationtech.jts.geom.MultiPolygon;
+import org.locationtech.jts.geom.Geometry;
 import org.springframework.stereotype.Component;
 
 @Component
@@ -15,14 +15,27 @@ public class TileCoordinatesPolygonIntersection {
   private final GeometryPixelProjector geometryPixelProjector;
   private final GeometryConverter geometryConverter;
 
+  public List<List<BigDecimal>> intersects(Geometry latLonRoofMultiPolygon, int x, int y, int z) {
+    var geometryIntersectionWithTile =
+        intersection(latLonRoofMultiPolygon, new TileCoordinates().x(x).y(y).z(z));
+    return geometryPixelProjector.toPixels(
+        geometryIntersectionWithTile, x, y, z, DEFAULT_PIXEL_SIZE);
+  }
+
   public List<List<BigDecimal>> intersects(
-      MultiPolygon latLonRoofMultiPolygon, TileCoordinates tileCoordinates) {
+      Geometry latLonRoofMultiPolygon, TileCoordinates tileCoordinates) {
+    return intersects(
+        latLonRoofMultiPolygon,
+        tileCoordinates.getX(),
+        tileCoordinates.getY(),
+        tileCoordinates.getZ());
+  }
+
+  public Geometry intersection(Geometry multiPolygon, TileCoordinates tileCoordinates) {
     var xTile = tileCoordinates.getX();
     var yTile = tileCoordinates.getY();
     var zTile = tileCoordinates.getZ();
     var multiPolygonFromTile = geometryConverter.getMultiPolygonFromTile(xTile, yTile, zTile);
-    var multiPolygonGeoJsonMask = latLonRoofMultiPolygon.intersection(multiPolygonFromTile);
-    return geometryPixelProjector.toPixels(
-        multiPolygonGeoJsonMask, xTile, yTile, zTile, DEFAULT_PIXEL_SIZE);
+    return multiPolygon.intersection(multiPolygonFromTile);
   }
 }

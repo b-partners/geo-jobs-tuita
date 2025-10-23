@@ -117,6 +117,7 @@ class VggPolygonDrawer {
       case TOMBE -> null;
       case ESPACE_VERT_PARKING -> "#93c47d";
       case BACKGROUND -> null;
+      default -> null;
     };
   }
 }

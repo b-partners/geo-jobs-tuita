@@ -1,5 +1,6 @@
 package app.bpartners.geojobs.service;
 
+import static app.bpartners.geojobs.endpoint.rest.model.Detection.GeoJsonDelimitationTypeEnum.ZONE;
 import static app.bpartners.geojobs.endpoint.rest.model.ModelName.TOITURE;
 import static app.bpartners.geojobs.model.geometry.GeometryFactory.geometryFactory;
 import static java.util.UUID.randomUUID;
@@ -50,6 +51,7 @@ class TileImageBlurTest {
 
     when(detectionMock.getId()).thenReturn(detectionId);
     when(detectionMock.hasToitureModelName()).thenReturn(true);
+    when(detectionMock.getGeoJsonDelimitationType()).thenReturn(ZONE);
     when(detectionMock.getDetectableObjectModel())
         .thenReturn(new DetectableObjectModel().modelName(TOITURE));
     when(detectionMock.getFeatureWithDelimitations())

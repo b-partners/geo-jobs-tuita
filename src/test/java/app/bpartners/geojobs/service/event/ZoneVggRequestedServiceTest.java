@@ -7,11 +7,15 @@ import static app.bpartners.geojobs.model.geometry.GeometryFactory.geometryFacto
 import static app.bpartners.geojobs.repository.model.detection.DetectableType.MOISISSURE_COULEUR;
 import static java.util.UUID.randomUUID;
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.when;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.*;
 
+import app.bpartners.geojobs.endpoint.event.EventProducer;
+import app.bpartners.geojobs.endpoint.event.model.GeoJsonConversionProcessSucceeded;
 import app.bpartners.geojobs.endpoint.event.model.ZoneVggRequested;
+import app.bpartners.geojobs.endpoint.rest.controller.mapper.FeatureMapper;
 import app.bpartners.geojobs.endpoint.rest.model.TileCoordinates;
 import app.bpartners.geojobs.model.geometry.PolygonObjectType;
 import app.bpartners.geojobs.model.geometry.TiledPixelPolygon;
@@ -30,15 +34,15 @@ import app.bpartners.geojobs.service.DetectionVGGUpdate;
 import app.bpartners.geojobs.service.PolygonCoordinatesCloser;
 import app.bpartners.geojobs.service.TileCoordinatesPolygonIntersection;
 import app.bpartners.geojobs.service.geojson.GeometryConverter;
+import java.math.BigDecimal;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import org.jetbrains.annotations.NotNull;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.locationtech.jts.geom.Coordinate;
-import org.locationtech.jts.geom.LinearRing;
-import org.locationtech.jts.geom.MultiPolygon;
-import org.locationtech.jts.geom.Polygon;
+import org.locationtech.jts.geom.*;
+import org.mockito.ArgumentCaptor;
 
 class ZoneVggRequestedServiceTest {
   DetectionRepository detectionRepositoryMock = mock();
@@ -49,6 +53,9 @@ class ZoneVggRequestedServiceTest {
   DetectionVGGUpdate detectionVGGUpdateMock = mock();
   PolygonCoordinatesCloser polygonCoordinatesCloser = new PolygonCoordinatesCloser();
   TileCoordinatesPolygonIntersection tileCoordinatesPolygonIntersectionMock = mock();
+  FeatureMapper featureMapperMock = mock();
+  DetectionRoofPropertiesRequestedService detectionRoofPropertiesRequestedServiceMock = mock();
+  EventProducer eventProducerMock = mock();
 
   ZoneVggRequestedService subject =
       new ZoneVggRequestedService(
@@ -59,7 +66,16 @@ class ZoneVggRequestedServiceTest {
           tilingTaskRepositoryMock,
           detectionVGGUpdateMock,
           polygonCoordinatesCloser,
-          tileCoordinatesPolygonIntersectionMock);
+          tileCoordinatesPolygonIntersectionMock,
+          featureMapperMock,
+          detectionRoofPropertiesRequestedServiceMock,
+          eventProducerMock);
+
+  @BeforeEach
+  void setUp() {
+    when(detectionRoofPropertiesRequestedServiceMock.apply(any(), any()))
+        .thenAnswer(invocationOnMock -> invocationOnMock.getArgument(0));
+  }
 
   @Test
   void compute_vgg_for_zone_and_update_detection_vgg() {
@@ -79,7 +95,9 @@ class ZoneVggRequestedServiceTest {
                     "{\"type\":\"Polygon\",\"coordinates\":[[[0.0,5],[5,5],[5,0.0],[0.0,0.0]]]}"))
             .build();
     Map<app.bpartners.geojobs.endpoint.rest.model.Feature, VGG> vggMapMock = mock();
+    List<VGG> vggCollectionMock = List.of(mock(VGG.class));
 
+    when(vggMapMock.values()).thenReturn(vggCollectionMock);
     when(detectionMock.getZdjId()).thenReturn(zoneDetectionJobIdentifier);
     when(detectionMock.getZtjId()).thenReturn(zoneTilingJobIdentifier);
     when(detectionMock.getPolygonGeoJsonZone())
@@ -136,17 +154,35 @@ class ZoneVggRequestedServiceTest {
                                 .build()))
                     .tile(Tile.builder().coordinates(tileCoordinates).build())
                     .build()));
+    var providedZoneInsideTileGeometryMock = mock(Geometry.class);
+    var providedZoneAndRoofInsideTileGeometryMock = mock(Geometry.class);
+    when(providedZoneInsideTileGeometryMock.intersection(any(Geometry.class)))
+        .thenReturn(providedZoneAndRoofInsideTileGeometryMock);
+    List<List<BigDecimal>> providedZoneAndRoofInsideTilePolygonCoordinatesMock = mock();
+    when(tileCoordinatesPolygonIntersectionMock.intersects(
+            eq(providedZoneAndRoofInsideTileGeometryMock), eq(tileCoordinates)))
+        .thenReturn(providedZoneAndRoofInsideTilePolygonCoordinatesMock);
+    when(tileCoordinatesPolygonIntersectionMock.intersection(
+            any(Geometry.class), eq(tileCoordinates)))
+        .thenReturn(providedZoneInsideTileGeometryMock);
+    when(geometryConverterMock.convertToPolygon(
+            providedZoneAndRoofInsideTilePolygonCoordinatesMock))
+        .thenReturn(somePolygon());
     when(geometryConverterMock.toPolygon(any())).thenReturn(somePolygon());
     when(geometryConverterMock.apply(any())).thenReturn(someMultiPolygon());
-    when(vggFactoryMock.from(
-            expectedTiledPixelPolygon(polygonGeoJsonZoneFeature, x, y, z),
-            someMultiPolygon(),
-            List.of(tileCoordinates)))
-        .thenReturn(vggMapMock);
-    when(detectionVGGUpdateMock.apply(vggMapMock, detectionMock)).thenReturn(detectionMock);
+    when(vggFactoryMock.from(anyList(), anyList())).thenReturn(vggMapMock);
+    when(detectionVGGUpdateMock.apply(vggCollectionMock, detectionMock)).thenReturn(detectionMock);
     when(detectionRepositoryMock.save(detectionMock)).thenReturn(detectionMock);
 
     assertDoesNotThrow(() -> subject.accept(new ZoneVggRequested(detectionIdentifier)));
+
+    verify(detectionVGGUpdateMock, times(1)).apply(vggCollectionMock, detectionMock);
+    var listCaptor = ArgumentCaptor.forClass(List.class);
+    verify(eventProducerMock, times(1)).accept(listCaptor.capture());
+    var geoJsonConversionProcessSucceeded =
+        (GeoJsonConversionProcessSucceeded) listCaptor.getValue().getFirst();
+    assertEquals(
+        new GeoJsonConversionProcessSucceeded(detectionMock), geoJsonConversionProcessSucceeded);
     // TODO: add more assertions
   }
 

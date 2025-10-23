@@ -31,6 +31,7 @@ import java.io.File;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.nio.file.Files;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.function.Consumer;
@@ -67,12 +68,17 @@ public class ZipGeoJsonAssembler implements Consumer<GeoJsonConversionJob> {
     var combinedFileKey = GEO_JSON_BUCKET_FOLDER + zoneDetectionJob.getId() + "/" + outputFileName;
     var detection = detectionService.getByZoneDetectionJob(zoneDetectionJob);
     var unifiedProvidedZone = detectionProvidedZoneUnifier.apply(detection);
-    var roofFeatures =
-        detection.getFeatureWithDelimitations().stream()
-            .map(FeatureWithDelimitation::delimitations)
-            .flatMap(List::stream)
-            .toList();
-    var providedZoneWithoutRoofMultiPolygon = detectionBackgroundRetriever.apply(detection);
+    List<Feature> roofFeatures = new ArrayList<>();
+    org.locationtech.jts.geom.MultiPolygon providedZoneWithoutRoofMultiPolygon = null;
+
+    if (detection.hasToitureModelName()) {
+      roofFeatures.addAll(
+          detection.getFeatureWithDelimitations().stream()
+              .map(FeatureWithDelimitation::delimitations)
+              .flatMap(List::stream)
+              .toList());
+      providedZoneWithoutRoofMultiPolygon = detectionBackgroundRetriever.apply(detection);
+    }
 
     var zipFile =
         computeZipFile(

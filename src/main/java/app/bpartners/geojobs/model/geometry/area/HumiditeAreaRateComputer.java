@@ -11,7 +11,7 @@ import app.bpartners.geojobs.model.geometry.PolygonObjectType;
 import app.bpartners.geojobs.repository.model.detection.DetectableType;
 import app.bpartners.geojobs.repository.model.detection.DetectedObject;
 import app.bpartners.geojobs.service.geojson.GeometryConverter;
-import java.util.Set;
+import java.util.Collection;
 import org.locationtech.jts.geom.Polygon;
 
 public class HumiditeAreaRateComputer extends AreaRateComputer {
@@ -19,7 +19,7 @@ public class HumiditeAreaRateComputer extends AreaRateComputer {
   private final FeatureMapper featureMapper = new FeatureMapper(new GeometryConverter(null));
   private final double roofArea;
   private final DetectedTile tile;
-  private final Set<PolygonObjectType> polygonObjectTypes;
+  private final Collection<PolygonObjectType> polygonObjectTypes;
 
   public HumiditeAreaRateComputer(double roofArea, DetectedTile tile) {
     this.roofArea = roofArea;
@@ -27,7 +27,8 @@ public class HumiditeAreaRateComputer extends AreaRateComputer {
     this.polygonObjectTypes = null;
   }
 
-  public HumiditeAreaRateComputer(double roofArea, Set<PolygonObjectType> polygonObjectTypes) {
+  public HumiditeAreaRateComputer(
+      double roofArea, Collection<PolygonObjectType> polygonObjectTypes) {
     this.tile = null;
     this.roofArea = roofArea;
     this.polygonObjectTypes = polygonObjectTypes;

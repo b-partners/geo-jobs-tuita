@@ -1,6 +1,10 @@
 package app.bpartners.geojobs.repository.model.detection;
 
+import static app.bpartners.geojobs.endpoint.rest.controller.mapper.FeatureMapper.toRestFeature;
+
+import app.bpartners.geojobs.endpoint.rest.controller.mapper.FeatureMapper;
 import app.bpartners.geojobs.repository.model.Feature;
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import java.util.List;
 import java.util.Objects;
@@ -17,6 +21,18 @@ public final class FeatureWithDelimitation {
   public FeatureWithDelimitation(Feature feature, List<Feature> delimitations) {
     this.feature = feature;
     this.delimitations = delimitations;
+  }
+
+  @JsonIgnore
+  public app.bpartners.geojobs.endpoint.rest.model.Feature getRestFeature() {
+    return feature == null ? null : toRestFeature(feature);
+  }
+
+  @JsonIgnore
+  public List<app.bpartners.geojobs.endpoint.rest.model.Feature> getRestDelimitations() {
+    return delimitations == null
+        ? null
+        : delimitations.stream().map(FeatureMapper::toRestFeature).toList();
   }
 
   public Feature feature() {

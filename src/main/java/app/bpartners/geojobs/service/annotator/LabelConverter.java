@@ -46,6 +46,7 @@ public class LabelConverter implements Function<DetectableType, Label> {
       case TOMBE -> null;
       case ESPACE_VERT_PARKING -> "#93c47d";
       case BACKGROUND -> null;
+      default -> null;
     };
   }
 }

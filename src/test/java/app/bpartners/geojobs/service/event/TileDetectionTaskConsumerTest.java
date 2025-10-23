@@ -1,6 +1,5 @@
 package app.bpartners.geojobs.service.event;
 
-import static app.bpartners.geojobs.repository.model.detection.DetectableType.*;
 import static java.util.UUID.randomUUID;
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.mockito.ArgumentMatchers.any;
@@ -13,16 +12,11 @@ import app.bpartners.geojobs.endpoint.rest.model.TileCoordinates;
 import app.bpartners.geojobs.repository.DetectionRepository;
 import app.bpartners.geojobs.repository.MachineDetectedTileRepository;
 import app.bpartners.geojobs.repository.model.TileDetectionTask;
-import app.bpartners.geojobs.repository.model.detection.DetectableObjectConfiguration;
-import app.bpartners.geojobs.repository.model.detection.Detection;
-import app.bpartners.geojobs.repository.model.detection.FeatureWithDelimitation;
-import app.bpartners.geojobs.repository.model.detection.MachineDetectedTile;
+import app.bpartners.geojobs.repository.model.detection.*;
 import app.bpartners.geojobs.repository.model.tiling.Tile;
 import app.bpartners.geojobs.service.DetectionMaskFromTileRetriever;
 import app.bpartners.geojobs.service.TileDetectionTaskConsumer;
-import app.bpartners.geojobs.service.detection.DetectionMapper;
-import app.bpartners.geojobs.service.detection.DetectionResponse;
-import app.bpartners.geojobs.service.detection.TileObjectDetector;
+import app.bpartners.geojobs.service.detection.*;
 import app.bpartners.geojobs.service.geojson.GeometryConverter;
 import java.io.File;
 import java.math.BigDecimal;
@@ -38,6 +32,7 @@ class TileDetectionTaskConsumerTest {
   DetectionRepository detectionRepositoryMock = mock();
   GeometryConverter geometryConverterMock = mock();
   DetectionMaskFromTileRetriever maskRetrieverMock = mock();
+  RoofCoveringDetector roofCoveringDetectorMock = mock();
   TileDetectionTaskConsumer subject =
       new TileDetectionTaskConsumer(
           machineDetectedTileRepositoryMock,
@@ -45,7 +40,8 @@ class TileDetectionTaskConsumerTest {
           detectionMapperMock,
           detectionRepositoryMock,
           geometryConverterMock,
-          maskRetrieverMock);
+          maskRetrieverMock,
+          roofCoveringDetectorMock);
 
   @Test
   void do_nothing_as_roof_polygon_not_intersecting_with_tile_polygon() {
@@ -110,6 +106,11 @@ class TileDetectionTaskConsumerTest {
     when(maskRetrieverMock.apply(tileMock, roofMultiPolygonMock)).thenReturn(maskFileMock);
     when(geometryConverterMock.readGeometryFromString(eq("roofGeometryActualInstanceStringValue")))
         .thenReturn(roofMultiPolygonMock);
+    when(roofCoveringDetectorMock.apply(any(Tile.class), any(File.class)))
+        .thenReturn(
+            new RoofCoveringDetector.RoofCoveringDetectionResponse(
+                new RoofCovering(RoofCoveringType.ROOF_ARDOISE, 1100L),
+                new RoofCovering(RoofCoveringType.ROOF_TUILES, 1000L)));
 
     assertDoesNotThrow(() -> subject.accept(tileDetectionTask));
 
@@ -146,6 +147,10 @@ class TileDetectionTaskConsumerTest {
             .tile(tileMock)
             .jobId(parcelJobId)
             .build();
+    var tileBuilderMock = mock(Tile.TileBuilder.class);
+    when(tileBuilderMock.detectionE2Id(any())).thenReturn(tileBuilderMock);
+    when(tileBuilderMock.build()).thenReturn(tileMock);
+    when(tileMock.toBuilder()).thenReturn(tileBuilderMock);
     when(tileMock.getCoordinates()).thenReturn(new TileCoordinates().x(0).y(0).z(20));
     when(roofDelimitationMockDomain.getGeometry()).thenReturn(mock());
     when(geometryConverterMock.apply(featureMultiPolygonMock.getCoordinates()))
@@ -179,6 +184,11 @@ class TileDetectionTaskConsumerTest {
     when(detectionMapperMock.toDetectedTile(any(), any(), any(), any(), any()))
         .thenReturn(new MachineDetectedTile());
     when(maskRetrieverMock.apply(tileMock, roofMultiPolygonMock)).thenReturn(maskFileMock);
+    when(roofCoveringDetectorMock.apply(any(Tile.class), any(File.class)))
+        .thenReturn(
+            new RoofCoveringDetector.RoofCoveringDetectionResponse(
+                new RoofCovering(RoofCoveringType.ROOF_ARDOISE, 1100L),
+                new RoofCovering(RoofCoveringType.ROOF_TUILES, 1000L)));
 
     assertDoesNotThrow(() -> subject.accept(tileDetectionTask));
 
@@ -220,6 +230,10 @@ class TileDetectionTaskConsumerTest {
             .tile(tileMock)
             .jobId(parcelJobId)
             .build();
+    var tileBuilderMock = mock(Tile.TileBuilder.class);
+    when(tileBuilderMock.detectionE2Id(any())).thenReturn(tileBuilderMock);
+    when(tileBuilderMock.build()).thenReturn(tileMock);
+    when(tileMock.toBuilder()).thenReturn(tileBuilderMock);
     when(featureGeometryMock.getMultiPolygon()).thenReturn(featureMultiPolygonMock);
     when(featureGeometryMock.getActualInstance()).thenReturn(featureMultiPolygonMock);
     when(featureMock.getGeometry()).thenReturn(featureGeometryMock);
@@ -238,6 +252,11 @@ class TileDetectionTaskConsumerTest {
     when(objectDetectorMock.apply(any(), any(), any())).thenReturn(detectionResponseMock);
     when(detectionMapperMock.toDetectedTile(any(), any(), any(), any(), any()))
         .thenReturn(new MachineDetectedTile());
+    when(roofCoveringDetectorMock.apply(any(Tile.class), eq(null)))
+        .thenReturn(
+            new RoofCoveringDetector.RoofCoveringDetectionResponse(
+                new RoofCovering(RoofCoveringType.ROOF_ARDOISE, 1100L),
+                new RoofCovering(RoofCoveringType.ROOF_TUILES, 1000L)));
 
     assertDoesNotThrow(() -> subject.accept(tileDetectionTask));
 

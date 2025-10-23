@@ -7,15 +7,11 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.springframework.http.HttpStatus.INTERNAL_SERVER_ERROR;
 
 import app.bpartners.geojobs.conf.FacadeIT;
-import app.bpartners.geojobs.service.dashboard.component.AreaPictureDetails;
-import app.bpartners.geojobs.service.dashboard.component.AreaPictureMapLayer;
-import app.bpartners.geojobs.service.dashboard.component.CrupdateAreaPictureDetails;
-import app.bpartners.geojobs.service.dashboard.component.GeoPosition;
+import app.bpartners.geojobs.service.dashboard.component.*;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.jetbrains.annotations.NotNull;
 import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.client.HttpServerErrorException;
 import org.springframework.web.client.RestTemplate;
 
@@ -26,11 +22,11 @@ class AreaPictureApiIT extends FacadeIT {
       "{\"type\":\"500 INTERNAL_SERVER_ERROR\",\"message\":\"Index 0 out of bounds for length 0\"}";
   ApiConfiguration apiConfiguration = new ApiConfiguration(System.getenv("BPARTNERS_API_URL"));
   final ObjectMapper objectMapper = new ObjectMapper().findAndRegisterModules();
-  SecurityApi securityApi = new SecurityApi(apiConfiguration, objectMapper);
-  @Autowired RestTemplate restTemplate;
+  final RestTemplate restTemplate = new RestTemplate();
+  SecurityApi securityApi = new SecurityApi(restTemplate, apiConfiguration, objectMapper);
   UserAccountsApi userAccountsApi =
       new UserAccountsApi(restTemplate, apiConfiguration, securityApi);
-  AreaPictureApi subject = new AreaPictureApi(apiConfiguration, userAccountsApi);
+  AreaPictureApi subject = new AreaPictureApi(restTemplate, apiConfiguration, userAccountsApi);
   final String apiKey = System.getenv("API_KEY");
 
   @Test
@@ -56,10 +52,9 @@ class AreaPictureApiIT extends FacadeIT {
 
     var actual = subject.getAreaPictureMapLayers(longitude, latitude, apiKey);
 
-    assertEquals(3, actual.size());
-    assertEquals("IGN_PHOTO_AERIENNE", actual.get(0).name());
-    assertEquals("cite:PCRS", actual.get(1).name());
-    assertEquals("FLUX_IGN_2023_20CM", actual.get(2).name());
+    assertEquals(2, actual.size());
+    assertEquals("PCRS.LAMB93", actual.get(0).name());
+    assertEquals("FLUX_IGN_2023_20CM", actual.get(1).name());
   }
 
   @Test
@@ -85,12 +80,12 @@ class AreaPictureApiIT extends FacadeIT {
   }
 
   private static @NotNull AreaPictureDetails expectedAreaPictureDetails(AreaPictureDetails actual) {
+    var houses0 = new Zoom("HOUSES_0", 20);
+    var building19 = new Zoom("BUILDING", 19);
     return new AreaPictureDetails(
         actual.id(),
-        new AreaPictureMapLayer(
-            actual.actualLayer().id(),
-            "cite:PHOTO_AERIENNE",
-            new AreaPictureMapLayer.Zoom("HOUSES_0", 20)),
-        new GeoPosition(48.8589892, 2.2847458));
+        new AreaPictureMapLayer(actual.actualLayer().id(), "IGN_PHOTO_AERIENNE", houses0),
+        new GeoPosition(48.8589892, 2.2847458),
+        new TileCoordinates(265468, 180361, building19));
   }
 }

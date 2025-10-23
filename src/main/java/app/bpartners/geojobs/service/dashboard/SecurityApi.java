@@ -14,7 +14,7 @@ import org.springframework.web.client.RestTemplate;
 @Component
 @RequiredArgsConstructor
 public class SecurityApi {
-  private final RestTemplate restTemplate = new RestTemplate();
+  private final RestTemplate restTemplate;
   private final ApiConfiguration apiConfiguration;
   private final ObjectMapper objectMapper;
 

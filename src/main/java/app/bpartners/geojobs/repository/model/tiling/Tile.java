@@ -20,6 +20,7 @@ public class Tile implements Serializable {
   private TileCoordinates coordinates;
   private String bucketPath;
   private File image;
+  private String detectionE2Id;
 
   @Override
   public String toString() {

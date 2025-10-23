@@ -42,14 +42,14 @@ public class ZoneTilingJobMapper {
   private final TileFinder tileFinder;
   private final TilePolygonRetriever tilePolygonRetriever;
 
-  public ZoneTilingJob toDomain(CreateZoneTilingJob rest, Boolean isRooferMade) {
+  public ZoneTilingJob toDomain(CreateZoneTilingJob rest, Boolean isSynchronous) {
     var generatedId = randomUUID();
     var job =
         ZoneTilingJob.builder()
             .id(generatedId.toString())
             .zoneName(rest.getZoneName())
             .emailReceiver(rest.getEmailReceiver())
-            .isRooferMade(isRooferMade != null && isRooferMade)
+            .isRooferMade(isSynchronous != null && isSynchronous)
             .submissionInstant(now())
             .build();
     job.hasNewStatus(

@@ -2,6 +2,8 @@ package app.bpartners.geojobs.service;
 
 import static app.bpartners.geojobs.endpoint.rest.model.ModelName.TOITURE;
 import static app.bpartners.geojobs.repository.model.detection.DetectableType.*;
+import static app.bpartners.geojobs.repository.model.detection.RoofCoveringType.ROOF_ARDOISE;
+import static app.bpartners.geojobs.repository.model.detection.RoofCoveringType.ROOF_TUILES;
 import static java.util.UUID.randomUUID;
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
@@ -33,6 +35,9 @@ import lombok.SneakyThrows;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 import org.springframework.core.io.ClassPathResource;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.client.RestTemplate;
 
 class TileDetectionTaskConsumerIT {
   private static final String DUMMY_BUCKET_NAME = "dummyBucketName";
@@ -42,6 +47,7 @@ class TileDetectionTaskConsumerIT {
   TileObjectDetectorConf tileObjectDetectorConfMock = mock();
   DetectionRepository detectionRepositoryMock = mock();
   CustomBucketComponent customBucketComponentMock = mock();
+  RestTemplate restTemplateMock = mock();
 
   GeometryConverter geometryConverter = new GeometryConverter(null);
   ObjectMapper objectMapper = new ObjectMapper().findAndRegisterModules();
@@ -61,6 +67,9 @@ class TileDetectionTaskConsumerIT {
           "dummyApiUrl",
           tileObjectDetectorConfMock,
           detectionResponseAggregator);
+  RoofCoveringDetector roofCoveringDetector =
+      new RoofCoveringDetector(
+          objectMapper, restTemplateMock, "dummyUrl", customBucketComponentMock);
 
   TileDetectionTaskConsumer subject =
       new TileDetectionTaskConsumer(
@@ -69,7 +78,8 @@ class TileDetectionTaskConsumerIT {
           detectionMapper,
           detectionRepositoryMock,
           geometryConverter,
-          maskRetriever);
+          maskRetriever,
+          roofCoveringDetector);
 
   @SneakyThrows
   @Test
@@ -110,7 +120,13 @@ class TileDetectionTaskConsumerIT {
     when(tileObjectDetectorConfMock.getTileDetectionApiUrls()).thenReturn(tileDetectionApiUrls());
     when(machineDetectedTileRepositoryMock.save(any()))
         .thenAnswer(invocation -> invocation.getArgument(0));
-
+    when(restTemplateMock.postForEntity(
+            any(String.class), any(), eq(RoofCoveringDetector.RoofCoveringDetectionResponse.class)))
+        .thenReturn(
+            new ResponseEntity<>(
+                new RoofCoveringDetector.RoofCoveringDetectionResponse(
+                    new RoofCovering(ROOF_ARDOISE, 1100L), new RoofCovering(ROOF_TUILES, 1000L)),
+                HttpStatus.OK));
     assertDoesNotThrow(
         () ->
             subject.accept(
@@ -133,6 +149,10 @@ class TileDetectionTaskConsumerIT {
         (actual.getDetectedObjects().stream()
             .map(DetectedObject::getDetectableObjectType)
             .collect(Collectors.toSet())));
+    assertEquals(ROOF_ARDOISE, actual.getPrimaryRoofCoveringType());
+    assertEquals(ROOF_TUILES, actual.getSecondaryRoofCoveringType());
+    assertEquals(1100, actual.getPrimaryRoofCoveringArea());
+    assertEquals(1000, actual.getSecondaryRoofCoveringArea());
   }
 
   private Set<DetectableType> expectedDetectedObjectTypes() {

@@ -23,6 +23,7 @@ import lombok.experimental.SuperBuilder;
 @EqualsAndHashCode(callSuper = false)
 @Setter
 public class ZoneTilingJob extends Job {
+  // TODO: rename to synchronous
   private boolean isRooferMade;
 
   @Override

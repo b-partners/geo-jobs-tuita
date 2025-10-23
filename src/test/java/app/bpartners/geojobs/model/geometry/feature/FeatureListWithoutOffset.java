@@ -27,8 +27,8 @@ public class FeatureListWithoutOffset implements Supplier<List<Feature>> {
     for (String key : vgg.keySet()) {
       var regions = vgg.get(key).getRegions().values();
       for (var region : regions) {
-        var label = region.getRegionAttribute().getLabel();
-        var confidence = region.getRegionAttribute().getConfidence();
+        var label = (String) region.getRegionAttribute().get("label");
+        var confidence = (Double) region.getRegionAttribute().get("confidence");
         var xList = region.getShapeAttribute().getAllPointsX();
         var yList = region.getShapeAttribute().getAllPointsY();
         var polygon = polygonFrom(toDistinctIntXY(xList, yList));

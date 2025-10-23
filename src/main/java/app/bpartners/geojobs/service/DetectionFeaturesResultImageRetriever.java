@@ -44,6 +44,9 @@ public class DetectionFeaturesResultImageRetriever implements Function<Detection
     }
 
     if (detection.hasToitureModelName()) {
+      if (detection.getGeoServerProperties() == null) {
+        return providedGeoJsonZone;
+      }
       var layer = detection.getGeoServerProperties().getGeoServerParameter().getLayers();
       if (layer == null) {
         return providedGeoJsonZone;

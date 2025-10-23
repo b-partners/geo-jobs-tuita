@@ -12,12 +12,13 @@ import app.bpartners.geojobs.repository.MachineDetectedTileRepository;
 import app.bpartners.geojobs.repository.model.TileDetectionTask;
 import app.bpartners.geojobs.repository.model.detection.DetectableObjectConfiguration;
 import app.bpartners.geojobs.repository.model.detection.MachineDetectedTile;
+import app.bpartners.geojobs.repository.model.detection.RoofCoveringType;
 import app.bpartners.geojobs.repository.model.tiling.Tile;
 import app.bpartners.geojobs.service.DetectionMaskFromTileRetriever;
 import app.bpartners.geojobs.service.TileDetectionTaskConsumer;
-import app.bpartners.geojobs.service.detection.DetectionMapper;
-import app.bpartners.geojobs.service.detection.MockedTileObjectDetector;
+import app.bpartners.geojobs.service.detection.*;
 import app.bpartners.geojobs.service.geojson.GeometryConverter;
+import java.io.File;
 import java.util.ArrayList;
 import org.junit.jupiter.api.Test;
 
@@ -32,6 +33,14 @@ class TileParcelDetectionTaskConsumerWithMockedObjectsDetectorTest {
     DetectionRepository detectionRepositoryMock = mock();
     GeometryConverter geometryConverterMock = mock();
     DetectionMaskFromTileRetriever maskRetrieverMock = mock();
+    RoofCoveringDetector roofCoveringDetectorMock = mock();
+
+    when(roofCoveringDetectorMock.apply(any(Tile.class), any(File.class)))
+        .thenReturn(
+            new RoofCoveringDetector.RoofCoveringDetectionResponse(
+                new RoofCovering(RoofCoveringType.ROOF_ARDOISE, 1100L),
+                new RoofCovering(RoofCoveringType.ROOF_TUILES, 1000L)));
+
     var subject =
         new TileDetectionTaskConsumer(
             machineDetectedTileRepositoryMock,
@@ -39,7 +48,8 @@ class TileParcelDetectionTaskConsumerWithMockedObjectsDetectorTest {
             detectionMapperMock,
             detectionRepositoryMock,
             geometryConverterMock,
-            maskRetrieverMock);
+            maskRetrieverMock,
+            roofCoveringDetectorMock);
 
     var detectableObjectConfigurations = new ArrayList<DetectableObjectConfiguration>();
     var zdjId = "zdjId";
