@@ -49,7 +49,7 @@ public class VGG extends HashMap<String, VGG.Annotation> {
       private ShapeAttribute shapeAttribute;
 
       @JsonProperty("region_attributes")
-      private RegionAttribute regionAttribute;
+      private HashMap<String, Object> regionAttribute;
 
       @AllArgsConstructor
       @Data
@@ -63,17 +63,6 @@ public class VGG extends HashMap<String, VGG.Annotation> {
 
         @JsonProperty("all_points_y")
         private List<Double> allPointsY;
-      }
-
-      @AllArgsConstructor
-      @Data
-      @Builder
-      @NoArgsConstructor
-      @JsonIgnoreProperties(ignoreUnknown = true)
-      public static class RegionAttribute {
-        private String label;
-        private Double confidence;
-        private Double rate_in_percent;
       }
     }
   }

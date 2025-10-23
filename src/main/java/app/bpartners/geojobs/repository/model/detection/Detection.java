@@ -1,12 +1,20 @@
 package app.bpartners.geojobs.repository.model.detection;
 
 import static app.bpartners.geojobs.endpoint.rest.controller.mapper.FeatureMapper.toRestFeature;
+import static app.bpartners.geojobs.endpoint.rest.model.DetectionStepName.POST_PROCESSING;
 import static app.bpartners.geojobs.endpoint.rest.model.ModelName.TOITURE;
+import static app.bpartners.geojobs.job.model.Status.HealthStatus.SUCCEEDED;
+import static app.bpartners.geojobs.job.model.Status.ProgressionStatus.FINISHED;
 import static app.bpartners.geojobs.model.exception.ApiException.ExceptionType.SERVER_EXCEPTION;
+import static jakarta.persistence.EnumType.STRING;
+import static jakarta.persistence.FetchType.EAGER;
+import static java.time.Instant.now;
 import static org.hibernate.type.SqlTypes.JSON;
+import static org.hibernate.type.SqlTypes.NAMED_ENUM;
 
 import app.bpartners.geojobs.endpoint.rest.controller.mapper.FeatureMapper;
 import app.bpartners.geojobs.endpoint.rest.model.*;
+import app.bpartners.geojobs.endpoint.rest.model.Detection.GeoJsonDelimitationTypeEnum;
 import app.bpartners.geojobs.endpoint.rest.validator.FeatureTypeChecker;
 import app.bpartners.geojobs.model.exception.ApiException;
 import app.bpartners.geojobs.repository.model.Feature;
@@ -15,6 +23,10 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.persistence.*;
 import java.io.Serializable;
 import java.math.BigDecimal;
+import java.time.Instant;
+import java.time.temporal.ChronoUnit;
+import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
 import java.util.stream.Collectors;
@@ -28,7 +40,7 @@ import org.hibernate.annotations.JdbcTypeCode;
 @Builder(toBuilder = true)
 @Getter
 @Setter
-@EqualsAndHashCode
+@EqualsAndHashCode(onlyExplicitlyIncluded = true)
 @Table(name = "detection")
 public class Detection implements Serializable {
   @Id private String id;
@@ -52,16 +64,18 @@ public class Detection implements Serializable {
   private String zoneName;
 
   private String emailReceiver;
-  private boolean isRooferMade;
   private boolean isSynchronous;
 
   @Getter(AccessLevel.NONE)
   private Boolean isOutputZipped;
 
+  @Getter(AccessLevel.NONE)
+  private boolean needsImageOutput = false;
+
   @JoinColumn(referencedColumnName = "id", name = "community_owner_id")
   private String communityOwnerId;
 
-  // TODO: save as entity as it map now the domain detectableObject
+  // TODO: save as entity
   @JdbcTypeCode(JSON)
   private List<DetectableObjectConfiguration> detectableObjectConfigurations;
 
@@ -83,6 +97,14 @@ public class Detection implements Serializable {
 
   @JdbcTypeCode(JSON)
   @Getter(AccessLevel.NONE)
+  private Feature polygonGeoJsonZone;
+
+  @JdbcTypeCode(JSON)
+  @Getter(AccessLevel.NONE)
+  private List<Feature> splitPolygonGeoJsonZone;
+
+  @JdbcTypeCode(JSON)
+  @Getter(AccessLevel.NONE)
   private HashMap<String, Feature> pointDelimitation;
 
   @JdbcTypeCode(JSON)
@@ -94,8 +116,59 @@ public class Detection implements Serializable {
   @JdbcTypeCode(JSON)
   private List<List<BigDecimal>> polygonRoofDelimitation;
 
+  @Enumerated(STRING)
+  @JdbcTypeCode(NAMED_ENUM)
+  private GeoJsonDelimitationTypeEnum geoJsonDelimitationType;
+
+  @OneToMany(fetch = EAGER, cascade = CascadeType.ALL)
+  @JoinColumn(name = "detection_id")
+  private List<DetectionStep> detectionSteps = new ArrayList<>();
+
+  @Column(nullable = true, updatable = false)
+  private Instant creationDatetime;
+
+  @PrePersist
+  protected void onCreate() {
+    this.creationDatetime = now().truncatedTo(ChronoUnit.MICROS);
+  }
+
+  public void addStep(DetectionStep step) {
+    if (detectionSteps == null) {
+      detectionSteps = new ArrayList<>();
+    }
+    detectionSteps.add(step);
+  }
+
+  public DetectionStep getStep() {
+    return detectionSteps == null
+        ? null
+        : detectionSteps.stream()
+            .max(Comparator.comparing(DetectionStep::getCreationDatetime))
+            .orElse(null);
+  }
+
+  public boolean isOnStepPostProcessingSucceeded() {
+    var detectionStep = getStep();
+    if (detectionStep == null) {
+      return false;
+    }
+    return POST_PROCESSING.equals(detectionStep.getName())
+        && FINISHED.equals(detectionStep.getProgression())
+        && SUCCEEDED.equals(detectionStep.getHealth());
+  }
+
   public boolean isOutputZipped() {
     return isOutputZipped != null && isOutputZipped;
+  }
+
+  public boolean needsImageOutput() {
+    return needsImageOutput;
+  }
+
+  public List<app.bpartners.geojobs.endpoint.rest.model.Feature> getSplitPolygonGeoJsonZone() {
+    return splitPolygonGeoJsonZone == null
+        ? null
+        : splitPolygonGeoJsonZone.stream().map(FeatureMapper::toRestFeature).toList();
   }
 
   public List<app.bpartners.geojobs.endpoint.rest.model.Feature> getProvidedGeoJsonZone() {
@@ -104,10 +177,18 @@ public class Detection implements Serializable {
         : providedGeoJsonZone.stream().map(FeatureMapper::toRestFeature).toList();
   }
 
+  public List<Feature> getDomainProvidedGeoJsonZone() {
+    return providedGeoJsonZone == null ? List.of() : providedGeoJsonZone;
+  }
+
   public List<app.bpartners.geojobs.endpoint.rest.model.Feature> getMultiPolygonGeoJsonZone() {
     return multiPolygonGeoJsonZone == null
         ? null
         : multiPolygonGeoJsonZone.stream().map(FeatureMapper::toRestFeature).toList();
+  }
+
+  public app.bpartners.geojobs.endpoint.rest.model.Feature getPolygonGeoJsonZone() {
+    return polygonGeoJsonZone == null ? null : toRestFeature(polygonGeoJsonZone);
   }
 
   public HashMap<

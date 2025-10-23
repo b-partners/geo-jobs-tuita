@@ -1,10 +1,13 @@
 package app.bpartners.geojobs.repository.model.detection;
 
 import static jakarta.persistence.CascadeType.ALL;
+import static jakarta.persistence.EnumType.STRING;
 import static jakarta.persistence.FetchType.EAGER;
 import static org.hibernate.type.SqlTypes.JSON;
+import static org.hibernate.type.SqlTypes.NAMED_ENUM;
 
 import app.bpartners.geojobs.repository.model.tiling.Tile;
+import app.bpartners.geojobs.service.detection.RoofCovering;
 import jakarta.persistence.*;
 import java.io.Serializable;
 import java.time.Instant;
@@ -48,7 +51,29 @@ public class MachineDetectedTile implements Serializable {
   @Column(name = "human_detection_job_id")
   private String humanDetectionJobId;
 
-  public String describe() {
-    return "DetectedTile(id=" + id + ",tile=" + tile + "," + "jobId=" + zdjJobId + ")";
+  @Column(name = "primary_roof_covering_type")
+  @Enumerated(STRING)
+  @JdbcTypeCode(NAMED_ENUM)
+  private RoofCoveringType primaryRoofCoveringType;
+
+  @Column(name = "primary_roof_covering_area")
+  private Long primaryRoofCoveringArea;
+
+  @Column(name = "secondary_roof_covering_type")
+  @Enumerated(STRING)
+  @JdbcTypeCode(NAMED_ENUM)
+  private RoofCoveringType secondaryRoofCoveringType;
+
+  @Column(name = "secondary_roof_covering_area")
+  private Long secondaryRoofCoveringArea;
+
+  public void setPrimaryRoofCovering(RoofCovering covering) {
+    primaryRoofCoveringArea = covering == null ? null : covering.area();
+    primaryRoofCoveringType = covering == null ? null : covering.coating();
+  }
+
+  public void setSecondaryRoofCovering(RoofCovering covering) {
+    secondaryRoofCoveringArea = covering == null ? null : covering.area();
+    secondaryRoofCoveringType = covering == null ? null : covering.coating();
   }
 }

@@ -107,6 +107,13 @@ public class InternalToRestExceptionHandler {
     return new ResponseEntity<>(toRest(e, HttpStatus.NOT_IMPLEMENTED), HttpStatus.NOT_IMPLEMENTED);
   }
 
+  @ExceptionHandler(value = {UnsupportedDetectionAreaException.class})
+  ResponseEntity<RestException> handleUnsupportedDetectionArea(
+      UnsupportedDetectionAreaException e) {
+    log.info("Detection area not supported", e);
+    return new ResponseEntity<>(toRest(e, HttpStatus.NOT_IMPLEMENTED), HttpStatus.NOT_IMPLEMENTED);
+  }
+
   @ExceptionHandler(value = {java.lang.Exception.class})
   ResponseEntity<RestException> handleDefault(java.lang.Exception e) {
     log.error("Internal error", e);

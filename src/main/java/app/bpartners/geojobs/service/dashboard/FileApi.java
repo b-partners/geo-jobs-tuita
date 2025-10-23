@@ -14,7 +14,7 @@ import org.springframework.web.util.UriComponentsBuilder;
 @Component
 @RequiredArgsConstructor
 public class FileApi {
-  private final RestTemplate restTemplate = new RestTemplate();
+  private final RestTemplate restTemplate;
   private final ApiConfiguration apiConfiguration;
   private final UserAccountsApi userAccountsApi;
 

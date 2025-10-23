@@ -134,6 +134,10 @@ public class SecurityConf {
                     .requestMatchers(POST, "/detections/*")
                     .hasAnyAuthority(
                         ROLE_ADMIN.name(), ROLE_COMMUNITY.name(), ROLE_INSURANCE.name())
+                    .requestMatchers(PUT, "/detections/*/step")
+                    .hasAnyAuthority(ROLE_ADMIN.name())
+                    .requestMatchers(PUT, "/communities/*/detections/*/step")
+                    .hasAnyAuthority(ROLE_ADMIN.name())
                     .requestMatchers(POST, "/detections/*/roofer")
                     .hasAnyAuthority(
                         ROLE_ADMIN.name(), ROLE_COMMUNITY.name(), ROLE_INSURANCE.name())
@@ -147,6 +151,9 @@ public class SecurityConf {
                     .hasAnyAuthority(
                         ROLE_ADMIN.name(), ROLE_COMMUNITY.name(), ROLE_INSURANCE.name())
                     .requestMatchers(GET, "/detections/*")
+                    .hasAnyAuthority(
+                        ROLE_ADMIN.name(), ROLE_COMMUNITY.name(), ROLE_INSURANCE.name())
+                    .requestMatchers(PUT, "/detections/*/roofs/properties")
                     .hasAnyAuthority(
                         ROLE_ADMIN.name(), ROLE_COMMUNITY.name(), ROLE_INSURANCE.name())
                     .requestMatchers(POST, "/detections/*/geojson")

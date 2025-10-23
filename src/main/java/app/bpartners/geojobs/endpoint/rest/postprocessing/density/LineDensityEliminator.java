@@ -42,7 +42,7 @@ public class LineDensityEliminator implements Function<VGG, VGG> {
         var entry = iterator.next();
         var region = entry.getValue();
         var p = polygon(region.getShapeAttribute());
-        var label = region.getRegionAttribute().getLabel();
+        var label = region.getRegionAttribute().get("label").toString();
         var density = p.getArea() / IMAGE_AREA;
 
         if (density > MAX_DENSITY_THRESHOLD

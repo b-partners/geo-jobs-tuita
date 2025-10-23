@@ -3,6 +3,7 @@ package app.bpartners.geojobs.endpoint.rest.security.authorizer;
 import app.bpartners.geojobs.endpoint.rest.controller.mapper.DetectableObjectTypeMapper;
 import app.bpartners.geojobs.endpoint.rest.model.CreateDetection;
 import app.bpartners.geojobs.endpoint.rest.model.MultiPolygon;
+import app.bpartners.geojobs.endpoint.rest.model.Polygon;
 import app.bpartners.geojobs.endpoint.rest.security.model.Principal;
 import app.bpartners.geojobs.endpoint.rest.validator.FeatureTypeChecker;
 import app.bpartners.geojobs.model.exception.ForbiddenException;
@@ -65,9 +66,9 @@ public class DetectionAuthorizer implements TriConsumer<String, CreateDetection,
     var communityAuthorization = authorizeCommunity(detectionId, principal);
     var features = createDetection.getGeoJsonZone();
     if (features != null && !features.isEmpty()) {
-      boolean featuresHasAllMultiPolygonInstances =
-          featureTypeChecker.apply(features, MultiPolygon.class);
-      if (featuresHasAllMultiPolygonInstances && principal.isCommunity()) {
+      var featuresHasPolygonOrMultiPolygonInstance =
+          featureTypeChecker.applySome(features, MultiPolygon.class, Polygon.class);
+      if (principal.isCommunity() && featuresHasPolygonOrMultiPolygonInstance) {
         communityZoneSurfaceAuthorizer.accept(communityAuthorization, features);
         communityZoneAuthorizer.accept(communityAuthorization, features, principal);
       }

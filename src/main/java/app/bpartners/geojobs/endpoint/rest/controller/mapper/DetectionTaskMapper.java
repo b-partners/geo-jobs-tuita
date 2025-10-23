@@ -90,10 +90,11 @@ public class DetectionTaskMapper {
 
   private DetectedObject toRest(
       app.bpartners.geojobs.repository.model.detection.DetectedObject detectedObject) {
+    var confidence = detectedObject.getComputedConfidence();
     return new DetectedObject()
         .detectedObjectType(toRest(detectedObject.getDetectableObjectType()))
         .feature(detectedObject.getFeature())
-        .confidence(BigDecimal.valueOf(detectedObject.getComputedConfidence()))
+        .confidence(confidence == null ? null : BigDecimal.valueOf(confidence))
         .detectorVersion("TODO"); // TODO
   }
 
@@ -101,6 +102,7 @@ public class DetectionTaskMapper {
     if (detectableType == null) return null;
     return switch (detectableType) {
       case PANNEAU_PHOTOVOLTAIQUE -> PANNEAU_PHOTOVOLTAIQUE;
+      case ROAD -> ROAD;
       case TOITURE_REVETEMENT -> TOITURE_REVETEMENT;
       case ARBRE -> ARBRE;
       case PISCINE -> PISCINE;
@@ -132,6 +134,19 @@ public class DetectionTaskMapper {
       case TOMBE -> null;
       case ESPACE_VERT_PARKING -> ESPACE_VERT_PARKING;
       case BACKGROUND -> BACKGROUND;
+      case ARBRE_INDIVIDUALISE -> ARBRE_INDIVIDUALISE;
+      case CANOPE -> CANOPE;
+      case ESPACE_ARBORE -> ESPACE_ARBORE;
+      case BATI -> BATI;
+      case SURFACES_ARTIFICIALISEES -> SURFACES_ARTIFICIALISEES;
+      case SURFACES_PERMEABLES -> SURFACES_PERMEABLES;
+      case PISTES_CYCLABLES -> PISTES_CYCLABLES;
+      case SYMBOLES_CYCLABLES -> SYMBOLES_CYCLABLES;
+      case MARQUAGES_VOIRIES -> MARQUAGES_VOIRIES;
+      case CIMETIERE -> CIMETIERE;
+      case TOMBE_SIMPLE -> TOMBE_SIMPLE;
+      case TOMBE_DOUBLE -> TOMBE_DOUBLE;
+      case TOMBE_NON_GEOMETRIQUE -> TOMBE_NON_GEOMETRIQUE;
     };
   }
 }

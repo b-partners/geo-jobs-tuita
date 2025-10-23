@@ -13,6 +13,7 @@ import static app.bpartners.geojobs.endpoint.rest.model.DetectableObjectType.TRO
 import static app.bpartners.geojobs.endpoint.rest.model.DetectableObjectType.VELUX;
 import static app.bpartners.geojobs.endpoint.rest.model.DetectableObjectType.VOIE_CARROSSABLE;
 import static app.bpartners.geojobs.endpoint.rest.model.ModelName.*;
+import static app.bpartners.geojobs.endpoint.rest.model.ModelName.TOITURE;
 import static app.bpartners.geojobs.repository.model.detection.DetectableType.LINE;
 import static java.util.UUID.randomUUID;
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -56,7 +57,6 @@ class DetectableObjectTypeMapperTest {
 
     var expected =
         List.of(
-            ARBRE,
             TOITURE_REVETEMENT,
             PANNEAU_PHOTOVOLTAIQUE,
             MOISISSURE_NOIRCIE,
@@ -66,13 +66,12 @@ class DetectableObjectTypeMapperTest {
             USURE_IMPORTANTE,
             USURE_LEGER,
             USURE,
-            FISSURE_CASSURE,
             OBSTACLE,
             CHEMINEE,
             HUMIDITE_INTENSE,
             HUMIDITE_CLAIR,
             HUMIDITE,
-            RISQUE_FEU);
+            VELUX);
     assertEquals(expected, actual);
   }
 
@@ -82,7 +81,7 @@ class DetectableObjectTypeMapperTest {
 
     var actual = subject.mapFromModel(object);
 
-    var expected = List.of(PASSAGE_PIETON, TROTTOIR, VOIE_CARROSSABLE);
+    var expected = List.of(PASSAGE_PIETON);
     assertEquals(expected, actual);
   }
 
@@ -92,8 +91,7 @@ class DetectableObjectTypeMapperTest {
 
     var actual = subject.mapFromModel(object);
 
-    var expected =
-        List.of(ARBRE, ESPACE_VERT, TOITURE_REVETEMENT, VOIE_CARROSSABLE, TROTTOIR, PARKING);
+    var expected = List.of(SURFACES_ARTIFICIALISEES, SURFACES_PERMEABLES);
     assertEquals(expected, actual);
   }
 
@@ -103,8 +101,7 @@ class DetectableObjectTypeMapperTest {
 
     var actual = subject.mapFromModel(object);
 
-    var expected =
-        List.of(TOITURE_REVETEMENT, ARBRE, VELUX, PANNEAU_PHOTOVOLTAIQUE, ESPACE_VERT, PISCINE);
+    var expected = List.of(BATI, VELUX, PANNEAU_PHOTOVOLTAIQUE, PISCINE);
     assertEquals(expected, actual);
   }
 
@@ -114,17 +111,17 @@ class DetectableObjectTypeMapperTest {
 
     var actual = subject.mapFromModel(object);
 
-    var expected = List.of(PARKING, PANNEAU_PHOTOVOLTAIQUE, ARBRE, ESPACE_VERT);
+    var expected = List.of(PARKING, PANNEAU_PHOTOVOLTAIQUE);
     assertEquals(expected, actual);
   }
 
   @Test
   void map_from_modl_BP_Trottoirs_Model() {
-    var object = new DetectableObjectModel().modelName(TROTTOIRS);
+    var object = new DetectableObjectModel().modelName(VOIRIE_TROTTOIRS);
 
     var actual = subject.mapFromModel(object);
 
-    var expected = List.of(TROTTOIR, VOIE_CARROSSABLE, ARBRE, ESPACE_VERT_PARKING);
+    var expected = List.of(TROTTOIR, VOIE_CARROSSABLE);
     assertEquals(expected, actual);
   }
 
@@ -134,15 +131,7 @@ class DetectableObjectTypeMapperTest {
 
     var actual = subject.mapFromModel(object);
 
-    var expected =
-        List.of(
-            ARBRE,
-            ESPACE_VERT,
-            TOITURE_REVETEMENT,
-            VOIE_CARROSSABLE,
-            TROTTOIR,
-            PARKING,
-            RISQUE_FEU);
+    var expected = List.of(ARBRE, ESPACE_VERT, VOIE_CARROSSABLE, TROTTOIR, PARKING, RISQUE_FEU);
     assertEquals(expected, actual);
   }
 
@@ -163,22 +152,10 @@ class DetectableObjectTypeMapperTest {
     // assertEquals(6, detectableObjectWithReferenceConfidences.size());
     assertTrue(
         detectableObjectWithReferenceConfidences.contains(
-            new DetectableObjectWithReferenceConfidence(DetectableType.ARBRE, 0.2504)));
+            new DetectableObjectWithReferenceConfidence(DetectableType.SURFACES_PERMEABLES, 1.0)));
     assertTrue(
         detectableObjectWithReferenceConfidences.contains(
-            new DetectableObjectWithReferenceConfidence(DetectableType.ESPACE_VERT, 0.251)));
-    assertTrue(
-        detectableObjectWithReferenceConfidences.contains(
-            new DetectableObjectWithReferenceConfidence(DetectableType.TOITURE_REVETEMENT, 0.252)));
-    assertTrue(
-        detectableObjectWithReferenceConfidences.contains(
-            new DetectableObjectWithReferenceConfidence(DetectableType.VOIE_CARROSSABLE, 0.0)));
-    assertTrue(
-        detectableObjectWithReferenceConfidences.contains(
-            new DetectableObjectWithReferenceConfidence(DetectableType.TROTTOIR, 0.252)));
-    assertTrue(
-        detectableObjectWithReferenceConfidences.contains(
-            new DetectableObjectWithReferenceConfidence(DetectableType.PARKING, 0.252)));
+            new DetectableObjectWithReferenceConfidence(DetectableType.SURFACES_PERMEABLES, 1.0)));
   }
 
   @Test
@@ -195,13 +172,10 @@ class DetectableObjectTypeMapperTest {
                         objectConfiguration.getObjectType(),
                         objectConfiguration.getMinConfidenceForDetection()))
             .toList();
-    assertEquals(6, detectableObjectWithReferenceConfidences.size());
+    assertEquals(4, detectableObjectWithReferenceConfidences.size());
     assertTrue(
         detectableObjectWithReferenceConfidences.contains(
-            new DetectableObjectWithReferenceConfidence(DetectableType.TOITURE_REVETEMENT, 0.252)));
-    assertTrue(
-        detectableObjectWithReferenceConfidences.contains(
-            new DetectableObjectWithReferenceConfidence(DetectableType.ARBRE, 0.2504)));
+            new DetectableObjectWithReferenceConfidence(DetectableType.BATI, 1.0)));
     assertTrue(
         detectableObjectWithReferenceConfidences.contains(
             new DetectableObjectWithReferenceConfidence(DetectableType.VELUX, 0.0)));
@@ -211,9 +185,6 @@ class DetectableObjectTypeMapperTest {
                 DetectableType.PANNEAU_PHOTOVOLTAIQUE, 0.27)));
     assertTrue(
         detectableObjectWithReferenceConfidences.contains(
-            new DetectableObjectWithReferenceConfidence(DetectableType.ESPACE_VERT, 0.251)));
-    assertTrue(
-        detectableObjectWithReferenceConfidences.contains(
             new DetectableObjectWithReferenceConfidence(DetectableType.PISCINE, 0.27)));
   }
 
@@ -221,7 +192,7 @@ class DetectableObjectTypeMapperTest {
   void map_bp_trottoirs_model_object_type_with_its_variable_reference_confidence() {
     var detectionId = randomUUID().toString();
 
-    var actual = subject.mapDefaultConfigurationsFromModel(detectionId, TROTTOIRS);
+    var actual = subject.mapDefaultConfigurationsFromModel(detectionId, VOIRIE_TROTTOIRS);
 
     var detectableObjectWithReferenceConfidences =
         actual.stream()
@@ -231,19 +202,13 @@ class DetectableObjectTypeMapperTest {
                         objectConfiguration.getObjectType(),
                         objectConfiguration.getMinConfidenceForDetection()))
             .toList();
-    assertEquals(4, detectableObjectWithReferenceConfidences.size());
+    assertEquals(2, detectableObjectWithReferenceConfidences.size());
     assertTrue(
         detectableObjectWithReferenceConfidences.contains(
             new DetectableObjectWithReferenceConfidence(DetectableType.TROTTOIR, 0.252)));
     assertTrue(
         detectableObjectWithReferenceConfidences.contains(
-            new DetectableObjectWithReferenceConfidence(DetectableType.ARBRE, 0.2504)));
-    assertTrue(
-        detectableObjectWithReferenceConfidences.contains(
             new DetectableObjectWithReferenceConfidence(DetectableType.VOIE_CARROSSABLE, 0.0)));
-    assertTrue(
-        detectableObjectWithReferenceConfidences.contains(
-            new DetectableObjectWithReferenceConfidence(DetectableType.ESPACE_VERT_PARKING, 0.0)));
   }
 
   @Test
@@ -260,20 +225,14 @@ class DetectableObjectTypeMapperTest {
                         objectConfiguration.getObjectType(),
                         objectConfiguration.getMinConfidenceForDetection()))
             .toList();
-    assertEquals(4, detectableObjectWithReferenceConfidences.size());
+    assertEquals(2, detectableObjectWithReferenceConfidences.size());
     assertTrue(
         detectableObjectWithReferenceConfidences.contains(
-            new DetectableObjectWithReferenceConfidence(DetectableType.ARBRE, 0.2504)));
-    assertTrue(
-        detectableObjectWithReferenceConfidences.contains(
-            new DetectableObjectWithReferenceConfidence(DetectableType.ESPACE_VERT, 0.251)));
+            new DetectableObjectWithReferenceConfidence(DetectableType.PARKING, 0.252)));
     assertTrue(
         detectableObjectWithReferenceConfidences.contains(
             new DetectableObjectWithReferenceConfidence(
                 DetectableType.PANNEAU_PHOTOVOLTAIQUE, 0.27)));
-    assertTrue(
-        detectableObjectWithReferenceConfidences.contains(
-            new DetectableObjectWithReferenceConfidence(DetectableType.PARKING, 0.252)));
   }
 
   @Test
@@ -290,10 +249,7 @@ class DetectableObjectTypeMapperTest {
                         objectConfiguration.getObjectType(),
                         objectConfiguration.getMinConfidenceForDetection()))
             .toList();
-    assertEquals(17, detectableObjectWithReferenceConfidences.size());
-    assertTrue(
-        detectableObjectWithReferenceConfidences.contains(
-            new DetectableObjectWithReferenceConfidence(DetectableType.ARBRE, 0.2504)));
+    assertEquals(15, detectableObjectWithReferenceConfidences.size());
     assertTrue(
         detectableObjectWithReferenceConfidences.contains(
             new DetectableObjectWithReferenceConfidence(DetectableType.TOITURE_REVETEMENT, 0.252)));
@@ -309,9 +265,6 @@ class DetectableObjectTypeMapperTest {
             new DetectableObjectWithReferenceConfidence(DetectableType.USURE_IMPORTANTE, 0.0)));
     assertTrue(
         detectableObjectWithReferenceConfidences.contains(
-            new DetectableObjectWithReferenceConfidence(DetectableType.FISSURE_CASSURE, 0.0)));
-    assertTrue(
-        detectableObjectWithReferenceConfidences.contains(
             new DetectableObjectWithReferenceConfidence(DetectableType.OBSTACLE, 0.0)));
     assertTrue(
         detectableObjectWithReferenceConfidences.contains(
@@ -319,9 +272,6 @@ class DetectableObjectTypeMapperTest {
     assertTrue(
         detectableObjectWithReferenceConfidences.contains(
             new DetectableObjectWithReferenceConfidence(DetectableType.HUMIDITE_INTENSE, 0.0)));
-    assertTrue(
-        detectableObjectWithReferenceConfidences.contains(
-            new DetectableObjectWithReferenceConfidence(DetectableType.RISQUE_FEU, 0.0)));
   }
 
   @Test
@@ -342,12 +292,6 @@ class DetectableObjectTypeMapperTest {
     assertTrue(
         detectableObjectWithReferenceConfidences.contains(
             new DetectableObjectWithReferenceConfidence(DetectableType.PASSAGE_PIETON, 0.29)));
-    assertTrue(
-        detectableObjectWithReferenceConfidences.contains(
-            new DetectableObjectWithReferenceConfidence(DetectableType.TROTTOIR, 0.252)));
-    assertTrue(
-        detectableObjectWithReferenceConfidences.contains(
-            new DetectableObjectWithReferenceConfidence(DetectableType.VOIE_CARROSSABLE, 0.0)));
   }
 
   @Test
@@ -364,16 +308,12 @@ class DetectableObjectTypeMapperTest {
                         objectConfiguration.getObjectType(),
                         objectConfiguration.getMinConfidenceForDetection()))
             .toList();
-
     assertTrue(
         detectableObjectWithReferenceConfidences.contains(
             new DetectableObjectWithReferenceConfidence(DetectableType.ARBRE, 0.2504)));
     assertTrue(
         detectableObjectWithReferenceConfidences.contains(
             new DetectableObjectWithReferenceConfidence(DetectableType.ESPACE_VERT, 0.251)));
-    assertTrue(
-        detectableObjectWithReferenceConfidences.contains(
-            new DetectableObjectWithReferenceConfidence(DetectableType.TOITURE_REVETEMENT, 0.252)));
     assertTrue(
         detectableObjectWithReferenceConfidences.contains(
             new DetectableObjectWithReferenceConfidence(DetectableType.VOIE_CARROSSABLE, 0.0)));

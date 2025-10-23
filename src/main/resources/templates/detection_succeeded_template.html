@@ -12,13 +12,13 @@
     <div th:if="${detection != null}">
         <p>Le traitement de la détection portant l'ID <span
                 th:text="${detection.endToEndId}"></span> s'est terminée avec succès le <span
-                th:text="${geoJsonSucceededDatetime}"></span>.</p>
+                th:text="${detectionSucceededDatetime}"></span>.</p>
         <p>Vous pouvez télécharger le résultat de la détection au format geojson <a th:href="${geojsonUrl}">ici</a>.</p>
     </div>
     <div th:unless="${detection != null}">
         <p>Le traitement de la ZoneDetectionJob(type=<span th:text="${zoneDetectionJob.getDetectionType()}"></span>)
-            portant l'ID <span th:text="${job.zoneDetectionJobId}"></span> s'est terminée avec succès le
-            <span th:text="${geoJsonSucceededDatetime}"></span>.</p>
+            portant l'ID <span th:text="${zoneDetectionJobId}"></span> s'est terminée avec succès le
+            <span th:text="${zoneDetectionJobSucceededDatetime}"></span>.</p>
     </div>
     <p>Cordialement,</p>
     <p>L'équipe BirdIA.</p>

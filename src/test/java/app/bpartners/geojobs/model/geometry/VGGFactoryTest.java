@@ -16,8 +16,6 @@ import app.bpartners.geojobs.endpoint.rest.model.TileCoordinates;
 import app.bpartners.geojobs.endpoint.rest.model.TileInfoSize;
 import app.bpartners.geojobs.endpoint.rest.postprocessing.GeoJsonLoader;
 import app.bpartners.geojobs.endpoint.rest.postprocessing.model.TilingConf;
-import app.bpartners.geojobs.file.ExtensionGuesser;
-import app.bpartners.geojobs.file.FileWriter;
 import app.bpartners.geojobs.model.DetectedTile;
 import app.bpartners.geojobs.repository.model.Feature;
 import app.bpartners.geojobs.repository.model.detection.DetectableObjectType;
@@ -28,7 +26,6 @@ import app.bpartners.geojobs.service.GeometryPixelProjector;
 import app.bpartners.geojobs.service.GeometrySquareMeterArea;
 import app.bpartners.geojobs.service.TileCoordinatesPolygonIntersection;
 import app.bpartners.geojobs.service.geojson.GeometryConverter;
-import app.bpartners.geojobs.service.tiling.TileFinder;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.io.File;
@@ -57,11 +54,9 @@ class VGGFactoryTest {
   GeometryConverter geometryConverter = new GeometryConverter(null);
   TileCoordinatesPolygonIntersection tileCoordinatesPolygonIntersection =
       new TileCoordinatesPolygonIntersection(new GeometryPixelProjector(), geometryConverter);
-  private final FeatureMapper featureMapper = new FeatureMapper(geometryConverter);
-  private final TileFinder tileFinder = new TileFinder();
+  FeatureMapper featureMapper = new FeatureMapper(geometryConverter);
   GeometrySquareMeterArea geometrySquareMeterArea = new GeometrySquareMeterArea();
   ObjectMapper objectMapper = new ObjectMapper().findAndRegisterModules();
-  FileWriter fileWriter = new FileWriter(objectMapper, new ExtensionGuesser());
 
   private final VGGFactory subject =
       new VGGFactory(
@@ -69,10 +64,23 @@ class VGGFactoryTest {
           tileCoordinatesPolygonIntersection,
           geometryConverter,
           geometrySquareMeterArea,
-          tileFinder);
+          objectMapper);
 
   public static DetectedTile detectedTile() {
     String humiditeGeometry =
+        """
+        {
+          "type": "MultiPolygon",
+          "coordinates": [ [ [
+            [ 100.0, 200.0 ],
+            [ 150.0, 210.0 ],
+            [ 160.0, 180.0 ],
+            [ 120.0, 170.0 ],
+            [ 100.0, 200.0 ]
+          ] ] ]
+        }
+        """;
+    String tuile =
         """
         {
           "type": "MultiPolygon",
@@ -155,6 +163,18 @@ class VGGFactoryTest {
                             .geometry(
                                 Feature.FeatureGeometry.builder()
                                     .geometryType(MULTI_POLYGON)
+                                    .actualInstanceStringValue(tuile)
+                                    .build())
+                            .build())
+                    .detectedObjectType(
+                        DetectableObjectType.builder().detectableType(BATI_TUILES).build())
+                    .build(),
+                DetectedObject.builder()
+                    .feature(
+                        feature.toBuilder()
+                            .geometry(
+                                Feature.FeatureGeometry.builder()
+                                    .geometryType(MULTI_POLYGON)
                                     .actualInstanceStringValue(moisissure)
                                     .build())
                             .build())
@@ -190,7 +210,7 @@ class VGGFactoryTest {
   }
 
   @Test
-  void detected_tiles_to_vgg_ok() {
+  void detected_tiles_to_vgg_ok() throws IOException {
     Coordinate[] boundingCoords =
         new Coordinate[] {
           new Coordinate(465.95744680851067, 282.97872340425533),
@@ -205,11 +225,12 @@ class VGGFactoryTest {
     LinearRing shell = geometryFactory.createLinearRing(boundingCoords);
     Polygon roofGeometry = geometryFactory.createPolygon(shell, null);
 
-    var actual = subject.from(roofGeometry, List.of(detectedTile()));
+    var actual = subject.from(roofGeometry, detectedTile());
 
     var filename = actual.keySet().stream().toList().getFirst();
+
     assertEquals(1, actual.size());
-    assertEquals(3, actual.get(filename).getRegions().size());
+    assertEquals(4, actual.get(filename).getRegions().size());
   }
 
   private Polygon some20x20Polygon() {
@@ -253,7 +274,10 @@ class VGGFactoryTest {
     when(roofLatLonMultiPolygonMock.getGeometryN(0)).thenReturn(polygon);
 
     Map<app.bpartners.geojobs.endpoint.rest.model.Feature, VGG> result =
-        subject.from(inputTiledPixelPolygons, roofLatLonMultiPolygonMock);
+        subject.from(
+            inputTiledPixelPolygons,
+            roofLatLonMultiPolygonMock,
+            List.of(new TileCoordinates().x(0).y(0).z(20)));
 
     Assertions.assertNotNull(result);
     assertEquals(1, result.size());
@@ -289,7 +313,11 @@ class VGGFactoryTest {
     var actual =
         assertThrows(
             IllegalStateException.class,
-            () -> subject.from(tiledPixelPolygons, roofLatLonMultiPolygonMock));
+            () ->
+                subject.from(
+                    tiledPixelPolygons,
+                    roofLatLonMultiPolygonMock,
+                    List.of(new TileCoordinates().x(0).y(0).z(20))));
 
     assertEquals(
         "No roof pixel polygon retrieved from roofLatLonMultiPolygon : "
@@ -318,7 +346,11 @@ class VGGFactoryTest {
             new TiledPixelPolygon(
                 featureContainingAddress, List.of(polygonObjectTypeMock), tileX, tileY, zoom));
 
-    var actual = subject.from(tiledPixelPolygons, roofLatLonMultiPolygonMock);
+    var actual =
+        subject.from(
+            tiledPixelPolygons,
+            roofLatLonMultiPolygonMock,
+            List.of(new TileCoordinates().x(tileX).y(tileY).z(20)));
 
     var vggString = new String(actual.get(featureContainingAddress).getBytes(), UTF_8);
     var expected = new HashMap<app.bpartners.geojobs.endpoint.rest.model.Feature, VGG>();

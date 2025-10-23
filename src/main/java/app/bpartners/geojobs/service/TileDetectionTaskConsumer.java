@@ -2,16 +2,13 @@ package app.bpartners.geojobs.service;
 
 import static app.bpartners.geojobs.model.geometry.GeometryFactory.geometryFactory;
 import static app.bpartners.geojobs.service.geojson.GeometryConverter.unifyMultiPolygon;
-import static java.time.Instant.now;
 
-import app.bpartners.geojobs.job.model.Status;
 import app.bpartners.geojobs.repository.DetectionRepository;
 import app.bpartners.geojobs.repository.MachineDetectedTileRepository;
 import app.bpartners.geojobs.repository.model.TileDetectionTask;
 import app.bpartners.geojobs.repository.model.detection.FeatureWithDelimitation;
-import app.bpartners.geojobs.repository.model.detection.MachineDetectedTile;
 import app.bpartners.geojobs.service.detection.DetectionMapper;
-import app.bpartners.geojobs.service.detection.DetectionResponse;
+import app.bpartners.geojobs.service.detection.RoofCoveringDetector;
 import app.bpartners.geojobs.service.detection.TileObjectDetector;
 import app.bpartners.geojobs.service.geojson.GeometryConverter;
 import com.fasterxml.jackson.core.JsonProcessingException;
@@ -20,6 +17,7 @@ import java.io.File;
 import java.util.List;
 import java.util.Objects;
 import lombok.AllArgsConstructor;
+import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
 import org.locationtech.jts.geom.MultiPolygon;
 import org.locationtech.jts.geom.Polygon;
@@ -35,8 +33,9 @@ public class TileDetectionTaskConsumer implements TaskConsumer<TileDetectionTask
   private final DetectionRepository detectionRepository;
   private final GeometryConverter geometryConverter;
   private final DetectionMaskFromTileRetriever maskRetriever;
-  private final DetectionProvidedZoneUnifier detectionProvidedZoneUnifier;
+  private final RoofCoveringDetector roofCoveringDetector;
 
+  @SneakyThrows
   @Override
   public void accept(TileDetectionTask tileDetectionTask) {
     var detectableObjectConfigurations = tileDetectionTask.getDetectableObjectConfigurations();
@@ -49,9 +48,7 @@ public class TileDetectionTaskConsumer implements TaskConsumer<TileDetectionTask
     var tileCoordinates = tile.getCoordinates();
     var detection = detectionRepository.findByZdjId(zoneDetectionJobId).orElse(null);
     if (detection != null) {
-      var providedGeoJsonZone = detection.getProvidedGeoJsonZone();
-      if (providedGeoJsonZone != null && detection.hasToitureModelName()) {
-        var unifiedProvidedZone = detectionProvidedZoneUnifier.apply(detection);
+      if (detection.hasToitureModelName()) {
         var multiPolygonFromTile =
             geometryConverter.getMultiPolygonFromTile(
                 tileCoordinates.getX(), tileCoordinates.getY(), tileCoordinates.getZ());
@@ -60,64 +57,37 @@ public class TileDetectionTaskConsumer implements TaskConsumer<TileDetectionTask
             featureWithDelimitations.stream()
                 .map(FeatureWithDelimitation::delimitations)
                 .flatMap(List::stream)
-                .filter(
+                .map(
                     roofFeature -> {
                       var geometry =
                           geometryConverter.readGeometryFromString(
                               roofFeature.getGeometry().getActualInstanceStringValue());
                       if (geometry instanceof MultiPolygon roofMultiPolygon) {
-                        return multiPolygonFromTile.intersects(roofMultiPolygon);
+                        return multiPolygonFromTile.intersection(roofMultiPolygon);
                       }
                       if (geometry instanceof Polygon roofPolygon) {
-                        return multiPolygonFromTile.intersects(roofPolygon);
+                        return multiPolygonFromTile.intersection(roofPolygon);
                       }
-                      return false;
+                      return null;
                     })
+                .map(
+                    geometry -> {
+                      if (geometry instanceof MultiPolygon multiPolygon) {
+                        return multiPolygon;
+                      }
+                      if (geometry instanceof Polygon polygon) {
+                        return geometryFactory.createMultiPolygon(new Polygon[] {polygon});
+                      }
+                      return null;
+                    })
+                .filter(Objects::nonNull)
                 .toList();
         if (!roofMultiPolygonIntersectedWithTilePolygon.isEmpty()) {
           var maskMultiPolygon =
               roofMultiPolygonIntersectedWithTilePolygon.stream()
-                  .map(
-                      roofFeature -> {
-                        var geometryRoofFromFeature =
-                            geometryConverter.readGeometryFromString(
-                                roofFeature.getGeometry().getActualInstanceStringValue());
-                        var intersection =
-                            geometryRoofFromFeature.intersection(multiPolygonFromTile);
-                        if (intersection instanceof MultiPolygon roofMultiPolygon) {
-                          return roofMultiPolygon;
-                        }
-                        if (intersection instanceof Polygon roofPolygon) {
-                          return geometryFactory.createMultiPolygon(new Polygon[] {roofPolygon});
-                        }
-                        return null;
-                      })
-                  .filter(Objects::nonNull)
                   .reduce(unifyMultiPolygon())
-                  .map(
-                      unifiedMaskMultiPolygon -> {
-                        if (unifiedProvidedZone.isEmpty()) {
-                          return unifiedMaskMultiPolygon;
-                        }
-                        var intersectedMaskWithProvidedZone =
-                            unifiedProvidedZone.intersection(unifiedMaskMultiPolygon);
-                        if (intersectedMaskWithProvidedZone instanceof Polygon polygon) {
-                          return geometryFactory.createMultiPolygon(new Polygon[] {polygon});
-                        }
-                        if (intersectedMaskWithProvidedZone instanceof MultiPolygon multiPolygon) {
-                          return multiPolygon;
-                        }
-                        return null;
-                      })
                   .orElse(null);
-          if (maskMultiPolygon != null) {
-            log.info(
-                "Mask coordinates : {} for tileCoordinates {}", maskMultiPolygon, tileCoordinates);
-            mask = maskRetriever.apply(tile, maskMultiPolygon);
-          } else {
-            log.info("Any mask retrieved for tileCoordinates {}", tile);
-            return;
-          }
+          mask = maskRetriever.apply(tile, maskMultiPolygon);
         } else {
           log.info(
               "Actual multiPolygon retrieved from tile {} not intersecting with any roof"
@@ -127,12 +97,25 @@ public class TileDetectionTaskConsumer implements TaskConsumer<TileDetectionTask
         }
       }
     }
-
-    DetectionResponse response =
+    var detectionResponse =
         objectsDetector.apply(tileDetectionTask, mask, detectableObjectConfigurations);
-    MachineDetectedTile machineDetectedTile =
+    var roofCoveringResponse =
+        roofCoveringDetector.apply(
+            tile.toBuilder()
+                .detectionE2Id(detection != null ? detection.getEndToEndId() : null)
+                .build(),
+            mask);
+    var machineDetectedTile =
         detectionMapper.toDetectedTile(
-            response, tile, tileDetectionTask.getParcelId(), zoneDetectionJobId, parcelJobId);
+            detectionResponse,
+            tile,
+            tileDetectionTask.getParcelId(),
+            zoneDetectionJobId,
+            parcelJobId);
+    if (roofCoveringResponse != null) {
+      machineDetectedTile.setPrimaryRoofCovering(roofCoveringResponse.primary());
+      machineDetectedTile.setSecondaryRoofCovering(roofCoveringResponse.secondary());
+    }
 
     if (machineDetectedTile.getDetectedObjects() != null) {
       machineDetectedTile
@@ -154,20 +137,5 @@ public class TileDetectionTaskConsumer implements TaskConsumer<TileDetectionTask
               });
     }
     machineDetectedTileRepository.save(machineDetectedTile);
-  }
-
-  public static TileDetectionTask withNewStatus(
-      TileDetectionTask task,
-      Status.ProgressionStatus progression,
-      Status.HealthStatus health,
-      String message) {
-    return (TileDetectionTask)
-        task.hasNewStatus(
-            Status.builder()
-                .progression(progression)
-                .health(health)
-                .creationDatetime(now())
-                .message(message)
-                .build());
   }
 }

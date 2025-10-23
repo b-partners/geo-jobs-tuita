@@ -17,12 +17,14 @@ import app.bpartners.geojobs.endpoint.rest.model.*;
 import app.bpartners.geojobs.endpoint.rest.security.AuthProvider;
 import app.bpartners.geojobs.endpoint.rest.security.authorizer.DetectionAuthorizer;
 import app.bpartners.geojobs.endpoint.rest.validator.ConfigureAddressValidator;
+import app.bpartners.geojobs.endpoint.rest.validator.CreateDetectionValidator;
 import app.bpartners.geojobs.endpoint.rest.validator.GetUsageValidator;
 import app.bpartners.geojobs.endpoint.rest.validator.ZoneDetectionJobValidator;
 import app.bpartners.geojobs.file.FileWriter;
 import app.bpartners.geojobs.file.MediaTypeGuesser;
 import app.bpartners.geojobs.job.model.JobStatus;
 import app.bpartners.geojobs.model.exception.BadRequestException;
+import app.bpartners.geojobs.model.exception.NotImplementedException;
 import app.bpartners.geojobs.model.page.BoundedPageSize;
 import app.bpartners.geojobs.model.page.PageFromOne;
 import app.bpartners.geojobs.repository.CommunityAuthorizationRepository;
@@ -30,21 +32,18 @@ import app.bpartners.geojobs.repository.DetectableObjectConfigurationRepository;
 import app.bpartners.geojobs.repository.model.community.CommunityAuthorization;
 import app.bpartners.geojobs.repository.model.detection.ZoneDetectionJob;
 import app.bpartners.geojobs.service.CommunityUsedSurfaceService;
+import app.bpartners.geojobs.service.DetectionService;
 import app.bpartners.geojobs.service.ParcelService;
 import app.bpartners.geojobs.service.ZoneService;
 import app.bpartners.geojobs.service.detection.ZoneDetectionJobService;
 import app.bpartners.geojobs.service.geojson.GeoJsonConversionJobService;
 import java.io.File;
+import java.time.Instant;
 import java.util.Collections;
 import java.util.List;
 import lombok.AllArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestParam;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 
 @RestController
 @AllArgsConstructor
@@ -71,6 +70,8 @@ public class ZoneDetectionController {
   private final FileWriter fileWriter;
   private final MediaTypeGuesser mediaTypeGuesser;
   private final ConfigureAddressValidator configureAddressValidator;
+  private final CreateDetectionValidator createDetectionValidator;
+  private final DetectionService detectionService;
 
   @PostMapping("/detectionJobs/{id}/succeed")
   public app.bpartners.geojobs.endpoint.rest.model.ZoneDetectionJob succeedJob(
@@ -183,8 +184,7 @@ public class ZoneDetectionController {
   @PostMapping("/detections/{id}/image")
   public Detection configureRooferDetectionImageFile(
       @PathVariable(name = "id") String detectionId, @RequestBody byte[] imageAsByte) {
-    File imageFile = fileWriter.apply(imageAsByte, null);
-    return zoneService.configureImageFile(detectionId, imageFile);
+    throw new NotImplementedException("POST /detections/{id}/image not supported anymore.");
   }
 
   @PostMapping("/detections/{id}/pdf")
@@ -210,20 +210,33 @@ public class ZoneDetectionController {
   @PostMapping("/detections/{id}/geoJsonResult")
   public Detection configureDetectionGeoJsonResult(
       @PathVariable(name = "id") String detectionId, @RequestBody byte[] geoJsonResult) {
-    File shapeFile = fileWriter.apply(geoJsonResult, null);
-    return zoneService.configureGeoJsonResult(detectionId, shapeFile);
+    File geojsonFile = fileWriter.apply(geoJsonResult, null);
+    return zoneService.configureGeoJsonResult(detectionId, geojsonFile);
   }
 
   @PostMapping("/detections/{id}")
   public Detection processDetection(
       @PathVariable(name = "id") String detectionId, @RequestBody CreateDetection createDetection) {
+    createDetectionValidator.accept(createDetection);
     detectionAuthorizer.accept(detectionId, createDetection, authProvider.getPrincipal());
     var communityAuthorization =
         communityAuthRepository.findByApiKey(authProvider.getPrincipal().getPassword());
     var communityOwnerId = communityAuthorization.map(CommunityAuthorization::getId).orElse(null);
-    var isRooferMade = false;
-    return zoneService.processDetection(
-        detectionId, createDetection, communityOwnerId, isRooferMade);
+    return zoneService.processDetection(detectionId, createDetection, communityOwnerId);
+  }
+
+  @PutMapping("/detections/{id}/step")
+  public Detection updateDetectionStep(
+      @PathVariable(name = "id") String detectionId, @RequestBody DetectionStep step) {
+    return zoneService.updateDetectionStep(detectionId, null, step);
+  }
+
+  @PutMapping("/communities/{communityId}/detections/{id}/step")
+  public Detection updateCommunityDetectionStep(
+      @PathVariable(name = "communityId") String communityOwnerId,
+      @PathVariable(name = "id") String detectionId,
+      @RequestBody DetectionStep step) {
+    return zoneService.updateDetectionStep(detectionId, communityOwnerId, step);
   }
 
   @PostMapping("/detections/{id}/addresses")
@@ -237,18 +250,13 @@ public class ZoneDetectionController {
   @PostMapping("/detections/{id}/roofer")
   public Detection processRooferDetection(
       @PathVariable(name = "id") String detectionId, @RequestBody CreateDetection createDetection) {
-    detectionAuthorizer.accept(detectionId, createDetection, authProvider.getPrincipal());
-    var communityAuthorization =
-        communityAuthRepository.findByApiKey(authProvider.getPrincipal().getPassword());
-    var communityOwnerId = communityAuthorization.map(CommunityAuthorization::getId).orElse(null);
-    var isRooferMade = true;
-    return zoneService.processDetection(
-        detectionId, createDetection, communityOwnerId, isRooferMade);
+    throw new NotImplementedException("POST /detections/{id}/roofer not supported anymore.");
   }
 
   @PostMapping("/detections/{id}/sync")
   public Detection processDetectionSynchronously(
       @PathVariable(name = "id") String detectionId, @RequestBody CreateDetection createDetection) {
+    createDetectionValidator.accept(createDetection);
     detectionAuthorizer.accept(detectionId, createDetection, authProvider.getPrincipal());
     var communityAuthorization =
         communityAuthRepository.findByApiKey(authProvider.getPrincipal().getPassword());
@@ -257,14 +265,16 @@ public class ZoneDetectionController {
         detectionId, createDetection, communityOwnerId);
   }
 
+  @PutMapping("/detections/{id}/roofs/properties")
+  public Detection computeDetectionRoofsProperties(
+      @PathVariable(name = "id") String detectionE2Id) {
+    return detectionService.computeRoofsProperties(detectionE2Id);
+  }
+
   @PostMapping("/detections/{id}/roofDelimiter")
   public Detection configureDetectionRoofDelimiter(
       @PathVariable(name = "id") String detectionId, @RequestBody RoofDelimiter roofDelimiter) {
-    var polygonDelimitations = roofDelimiter.getPolygon();
-    var communityAuthorization =
-        communityAuthRepository.findByApiKey(authProvider.getPrincipal().getPassword());
-    var communityOwnerId = communityAuthorization.map(CommunityAuthorization::getId).orElse(null);
-    return zoneService.configureRoofDelimiter(detectionId, communityOwnerId, polygonDelimitations);
+    throw new NotImplementedException("POST /detections/{id}/roofDelimiter not supported anymore.");
   }
 
   @PostMapping("/detections/{id}/roofer/email")
@@ -293,10 +303,12 @@ public class ZoneDetectionController {
   public List<Detection> getDetections(
       @RequestParam(name = "page", defaultValue = "1", required = false) PageFromOne page,
       @RequestParam(name = "pageSize", defaultValue = "10", required = false)
-          BoundedPageSize pageSize) {
+          BoundedPageSize pageSize,
+      @RequestParam(name = "from", required = false, defaultValue = "") Instant from,
+      @RequestParam(name = "to", required = false) Instant to) {
     var communityAuthorization =
         communityAuthRepository.findByApiKey(authProvider.getPrincipal().getPassword());
     var communityOwnerId = communityAuthorization.map(CommunityAuthorization::getId);
-    return zoneService.getDetectionsByCriteria(communityOwnerId, page, pageSize);
+    return zoneService.getDetectionsByCriteria(communityOwnerId, page, pageSize, from, to);
   }
 }

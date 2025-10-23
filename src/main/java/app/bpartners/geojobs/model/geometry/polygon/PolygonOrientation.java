@@ -4,6 +4,7 @@ import static java.lang.Math.atan2;
 
 import java.util.function.Supplier;
 import lombok.AllArgsConstructor;
+import org.locationtech.jts.algorithm.MinimumDiameter;
 import org.locationtech.jts.geom.Coordinate;
 import org.locationtech.jts.geom.Point;
 import org.locationtech.jts.geom.Polygon;
@@ -44,5 +45,15 @@ public class PolygonOrientation implements Supplier<Double> {
 
     // Compute continuationOrientation angle using PCA
     return 0.5 * atan2(2 * sumXY, sumXX - sumYY);
+  }
+
+  public double angle() {
+    var minRect = MinimumDiameter.getMinimumRectangle(polygon);
+    Coordinate[] coords = minRect.getCoordinates();
+
+    double dx = coords[1].x - coords[0].x;
+    double dy = coords[1].y - coords[0].y;
+
+    return Math.atan2(dy, dx);
   }
 }

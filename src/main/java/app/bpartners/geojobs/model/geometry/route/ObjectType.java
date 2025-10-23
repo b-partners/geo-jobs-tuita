@@ -52,6 +52,7 @@ public enum ObjectType {
   humidite_clair(lengthOrWidth),
   humidite_intense(lengthOrWidth),
   velux(lengthOrWidth),
+  concession(lengthOrWidth),
   background(lengthOrWidth);
 
   private final ContinuationOrientation continuationOrientation;
@@ -70,6 +71,9 @@ public enum ObjectType {
               PANNEAU_PHOTOVOLTAIQUE,
               PISCINE,
               ARBRE,
+              ARBRE_INDIVIDUALISE,
+              CANOPE,
+              ESPACE_ARBORE,
               ESPACE_VERT,
               VOIE_CARROSSABLE,
               PARKING,
@@ -88,7 +92,18 @@ public enum ObjectType {
               BATI_BETON,
               BATI_ARDOISE,
               BATI_AUTRES,
-              BACKGROUND ->
+              BATI,
+              BACKGROUND,
+              SURFACES_ARTIFICIALISEES,
+              SURFACES_PERMEABLES,
+              PISTES_CYCLABLES,
+              SYMBOLES_CYCLABLES,
+              MARQUAGES_VOIRIES,
+              CIMETIERE,
+              TOMBE_SIMPLE,
+              TOMBE_DOUBLE,
+              TOMBE_NON_GEOMETRIQUE,
+              ROAD ->
           throw new IllegalArgumentException("Unsupported continuation on " + detectableType);
     };
   }
@@ -130,6 +145,7 @@ public enum ObjectType {
       case "cheminee", "cheminée" -> cheminee;
       case "velux" -> velux;
       case "background" -> background;
+      case "concession" -> concession;
       default -> throw new IllegalArgumentException("Unsupported continuation on " + label);
     };
   }

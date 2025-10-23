@@ -1,5 +1,6 @@
 package app.bpartners.geojobs.endpoint.rest.controller;
 
+import static app.bpartners.geojobs.endpoint.rest.model.DetectionStepName.REQUEST_ACCEPTED;
 import static app.bpartners.geojobs.endpoint.rest.security.model.Authority.Role.ROLE_ADMIN;
 import static app.bpartners.geojobs.job.model.Status.HealthStatus.FAILED;
 import static app.bpartners.geojobs.job.model.Status.HealthStatus.RETRYING;
@@ -17,23 +18,14 @@ import static org.mockito.Mockito.*;
 import app.bpartners.geojobs.endpoint.event.EventProducer;
 import app.bpartners.geojobs.endpoint.event.model.status.ZDJParcelsStatusRecomputingSubmitted;
 import app.bpartners.geojobs.endpoint.event.model.status.ZDJStatusRecomputingSubmitted;
-import app.bpartners.geojobs.endpoint.rest.controller.mapper.DetectableObjectConfigurationMapper;
-import app.bpartners.geojobs.endpoint.rest.controller.mapper.DetectableObjectTypeMapper;
-import app.bpartners.geojobs.endpoint.rest.controller.mapper.DetectionSurfaceUnitMapper;
-import app.bpartners.geojobs.endpoint.rest.controller.mapper.DetectionTaskMapper;
-import app.bpartners.geojobs.endpoint.rest.controller.mapper.StatusMapper;
-import app.bpartners.geojobs.endpoint.rest.controller.mapper.TaskStatisticMapper;
-import app.bpartners.geojobs.endpoint.rest.controller.mapper.ZoneDetectionJobMapper;
-import app.bpartners.geojobs.endpoint.rest.controller.mapper.ZoneDetectionTypeMapper;
-import app.bpartners.geojobs.endpoint.rest.model.CreateDetection;
-import app.bpartners.geojobs.endpoint.rest.model.Detection;
-import app.bpartners.geojobs.endpoint.rest.model.DetectionSurfaceUnit;
-import app.bpartners.geojobs.endpoint.rest.model.DetectionUsage;
+import app.bpartners.geojobs.endpoint.rest.controller.mapper.*;
+import app.bpartners.geojobs.endpoint.rest.model.*;
 import app.bpartners.geojobs.endpoint.rest.security.AuthProvider;
 import app.bpartners.geojobs.endpoint.rest.security.authorizer.DetectionAuthorizer;
 import app.bpartners.geojobs.endpoint.rest.security.model.Authority;
 import app.bpartners.geojobs.endpoint.rest.security.model.Principal;
 import app.bpartners.geojobs.endpoint.rest.validator.ConfigureAddressValidator;
+import app.bpartners.geojobs.endpoint.rest.validator.CreateDetectionValidator;
 import app.bpartners.geojobs.endpoint.rest.validator.GetUsageValidator;
 import app.bpartners.geojobs.endpoint.rest.validator.ZoneDetectionJobValidator;
 import app.bpartners.geojobs.file.FileWriter;
@@ -45,6 +37,7 @@ import app.bpartners.geojobs.job.model.statistic.HealthStatusStatistic;
 import app.bpartners.geojobs.job.model.statistic.TaskStatistic;
 import app.bpartners.geojobs.job.model.statistic.TaskStatusStatistic;
 import app.bpartners.geojobs.model.exception.BadRequestException;
+import app.bpartners.geojobs.model.exception.NotImplementedException;
 import app.bpartners.geojobs.repository.CommunityAuthorizationRepository;
 import app.bpartners.geojobs.repository.DetectableObjectConfigurationRepository;
 import app.bpartners.geojobs.repository.model.GeoJobType;
@@ -54,6 +47,7 @@ import app.bpartners.geojobs.repository.model.detection.DetectableType;
 import app.bpartners.geojobs.repository.model.detection.ZoneDetectionJob;
 import app.bpartners.geojobs.repository.model.tiling.ZoneTilingJob;
 import app.bpartners.geojobs.service.CommunityUsedSurfaceService;
+import app.bpartners.geojobs.service.DetectionService;
 import app.bpartners.geojobs.service.ParcelService;
 import app.bpartners.geojobs.service.ZoneService;
 import app.bpartners.geojobs.service.detection.ZoneDetectionJobService;
@@ -91,6 +85,8 @@ class ZoneDetectionControllerTest {
   FileWriter fileWriterMock = mock();
   MediaTypeGuesser mediaTypeGuesserMock = mock();
   ConfigureAddressValidator configureAddressValidatorMock = mock();
+  CreateDetectionValidator createDetectionValidatorMock = mock(CreateDetectionValidator.class);
+  DetectionService detectionServiceMock = mock();
   ZoneDetectionController subject =
       new ZoneDetectionController(
           parcelServiceMock,
@@ -113,13 +109,28 @@ class ZoneDetectionControllerTest {
           detectionAuthorizerMock,
           fileWriterMock,
           mediaTypeGuesserMock,
-          configureAddressValidatorMock);
+          configureAddressValidatorMock,
+          createDetectionValidatorMock,
+          detectionServiceMock);
 
   @BeforeEach
   void setup() {
     when(authProviderMock.getPrincipal())
         .thenReturn(new Principal("dummyApiKey", Set.of(new Authority(ROLE_ADMIN))));
     when(communityAuthRepositoryMock.findByApiKey(any())).thenReturn(Optional.empty());
+    doNothing().when(createDetectionValidatorMock).accept(any());
+  }
+
+  @Test
+  void compute_roof_slope() {
+    var detectionIdentifier = randomUUID().toString();
+    var detectionMock = mock(Detection.class);
+    when(detectionServiceMock.computeRoofsProperties(detectionIdentifier))
+        .thenReturn(detectionMock);
+
+    var actual = subject.computeDetectionRoofsProperties(detectionIdentifier);
+
+    assertEquals(detectionMock, actual);
   }
 
   @Test
@@ -272,6 +283,48 @@ class ZoneDetectionControllerTest {
     verify(principal).getPassword();
     verify(communityAuthRepositoryMock).findByApiKey("api-key");
     verify(communityAuth).getId();
+  }
+
+  @Test
+  void configureRoofDelimiter_ok() {
+    var actualException =
+        assertThrows(
+            NotImplementedException.class,
+            () -> subject.configureDetectionRoofDelimiter("detectionId", new RoofDelimiter()));
+
+    assertEquals(
+        "POST /detections/{id}/roofDelimiter not supported anymore.", actualException.getMessage());
+  }
+
+  @Test
+  void updateDetectionStep_ok() {
+    var detectionMock = mock(Detection.class);
+    when(zoneServiceMock.updateDetectionStep(anyString(), anyString(), any(DetectionStep.class)))
+        .thenReturn(detectionMock);
+
+    Detection actual =
+        subject.updateCommunityDetectionStep(
+            randomUUID().toString(),
+            randomUUID().toString(),
+            new DetectionStep().name(REQUEST_ACCEPTED));
+
+    assertNotNull(actual);
+    assertEquals(detectionMock, actual);
+  }
+
+  @Test
+  void configureDetectionAddresses_ok() {
+    var addresses = List.of(new Address().address("dummyAddress"));
+    var addressesStrings = addresses.stream().map(Address::getAddress).toList();
+    when(zoneServiceMock.configureDetectionAddresses(anyString(), any()))
+        .thenReturn(new Detection().addresses(addressesStrings));
+
+    Detection actual = subject.configureDetectionAddresses("detectionId", addresses);
+
+    assertNotNull(actual);
+    assertEquals(addressesStrings, actual.getAddresses());
+
+    verify(zoneServiceMock).configureDetectionAddresses("detectionId", addressesStrings);
   }
 
   private static app.bpartners.geojobs.repository.model.detection.ZoneDetectionJob aZDJ(

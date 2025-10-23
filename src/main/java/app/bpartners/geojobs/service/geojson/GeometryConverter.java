@@ -1,8 +1,12 @@
 package app.bpartners.geojobs.service.geojson;
 
+import static app.bpartners.geojobs.endpoint.rest.model.Feature.TypeEnum.FEATURE;
 import static app.bpartners.geojobs.endpoint.rest.model.Geometry.TypeEnum.MULTI_POLYGON;
+import static app.bpartners.geojobs.endpoint.rest.model.Polygon.TypeEnum.POLYGON;
 
+import app.bpartners.geojobs.endpoint.rest.model.FeatureGeometry;
 import app.bpartners.geojobs.model.exception.NotImplementedException;
+import app.bpartners.geojobs.model.geometry.RoofDetails;
 import app.bpartners.geojobs.repository.model.Feature;
 import app.bpartners.geojobs.service.GeometryTools;
 import app.bpartners.geojobs.service.gouv.fr.rnb.BuildingApi;
@@ -17,6 +21,7 @@ import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
 import org.geotools.geojson.geom.GeometryJSON;
 import org.locationtech.jts.geom.*;
+import org.locationtech.jts.geom.util.GeometryFixer;
 import org.springframework.stereotype.Component;
 
 // Most ChatGPT-generated code
@@ -33,21 +38,6 @@ public class GeometryConverter {
     this.buildingApi = buildingApi;
   }
 
-  @SneakyThrows
-  public Feature toFeature(
-      Integer zoom,
-      HashMap<String, Object> properties,
-      app.bpartners.geojobs.endpoint.rest.model.Point restPoint) {
-    return Feature.builder()
-        .zoom(zoom)
-        .properties(properties)
-        .geometry(
-            new Feature.FeatureGeometry(
-                app.bpartners.geojobs.endpoint.rest.model.Geometry.TypeEnum.POINT,
-                new ObjectMapper().writeValueAsString(restPoint)))
-        .build();
-  }
-
   public Feature toFeature(
       String featureId, Integer zoom, Map<String, Object> properties, MultiPolygon multiPolygon) {
     return Feature.builder()
@@ -62,6 +52,26 @@ public class GeometryConverter {
         .build();
   }
 
+  public app.bpartners.geojobs.endpoint.rest.model.Feature toRestFeature(
+      org.locationtech.jts.geom.Polygon jtsPolygon) {
+    return new app.bpartners.geojobs.endpoint.rest.model.Feature()
+        .type(FEATURE)
+        .properties(new HashMap<>())
+        .geometry(
+            new FeatureGeometry(
+                new app.bpartners.geojobs.endpoint.rest.model.Polygon()
+                    .type(POLYGON)
+                    .coordinates(
+                        List.of(
+                            Arrays.stream(jtsPolygon.getCoordinates()).toList().stream()
+                                .map(
+                                    coordinate ->
+                                        List.of(
+                                            BigDecimal.valueOf(coordinate.getX()),
+                                            BigDecimal.valueOf(coordinate.getY())))
+                                .toList()))));
+  }
+
   public MultiPolygon retrieveNearestRoofMultiPolygon(
       app.bpartners.geojobs.endpoint.rest.model.Point point) {
     if (buildingApi == null || point == null) {
@@ -70,7 +80,7 @@ public class GeometryConverter {
     return retrieveNearestRoofMultiPolygon(point.getCoordinates());
   }
 
-  public List<MultiPolygon> retrieveRoofPolygonsFrom(
+  public List<RoofDetails> retrieveRoofPolygonsFrom(
       List<List<BigDecimal>> lonLatPolygonCoordinates) {
     var maxRadius = 1000;
     var metersPolygonCoordinates =
@@ -91,7 +101,7 @@ public class GeometryConverter {
     return getBuildingsFromCentroid(longitude, latitude, minimumEnclosingRadius, jtsMultiPolygon);
   }
 
-  private List<MultiPolygon> getBuildingsFromCentroid(
+  private List<RoofDetails> getBuildingsFromCentroid(
       double longitude, double latitude, int radius, MultiPolygon provided) {
     var buildingClosest = buildingApi.getBuildingClosest(latitude, longitude, radius);
     var buildingIdentifiers =
@@ -104,13 +114,46 @@ public class GeometryConverter {
         .map(buildingApi::getBuildingByRnbId)
         .map(
             building -> {
+              var buildingAddresses =
+                  building.addresses().stream()
+                      .map(
+                          buildingAddress -> {
+                            StringBuilder addressBuilder = new StringBuilder();
+                            if (buildingAddress.streetNumber() != null) {
+                              addressBuilder.append(buildingAddress.streetNumber()).append(" ");
+                            }
+                            if (buildingAddress.streetRep() != null
+                                && !buildingAddress.streetRep().isEmpty()) {
+                              addressBuilder.append(buildingAddress.streetRep()).append(" ");
+                            }
+                            if (buildingAddress.street() != null) {
+                              addressBuilder.append(buildingAddress.street()).append(" ");
+                            }
+                            if (buildingAddress.cityName() != null) {
+                              addressBuilder.append(buildingAddress.cityName()).append(" ");
+                            }
+                            if (buildingAddress.cityZipCode() != null) {
+                              addressBuilder.append(buildingAddress.cityZipCode()).append(" ");
+                            }
+                            return addressBuilder.toString().trim();
+                          })
+                      .toList();
               var geometryType = building.shape().getType();
+              MultiPolygon geometry;
               switch (geometryType) {
                 case POLYGON -> {
-                  return apply(List.of(building.shape().getPolygonCoordinates()));
+                  geometry = apply(List.of(building.shape().getPolygonCoordinates()));
                 }
                 case MULTI_POLYGON -> {
-                  return apply(building.shape().getMultiPolygonCoordinates());
+                  geometry = apply(building.shape().getMultiPolygonCoordinates());
+                }
+                case POINT -> {
+                  log.warn(
+                      "No building obtain from around longitude={}, latitude={} with radius={}",
+                      longitude,
+                      latitude,
+                      radius);
+                  geometry = null;
                 }
                 default ->
                     throw new UnsupportedOperationException(
@@ -118,10 +161,13 @@ public class GeometryConverter {
                             + " is "
                             + geometryType);
               }
+              return new RoofDetails(geometry, buildingAddresses);
             })
         .filter(
-            roofMultiPolygon ->
-                provided.contains(roofMultiPolygon) || provided.intersects(roofMultiPolygon))
+            roofGeometry ->
+                roofGeometry.latLonGeometry() != null
+                    && (provided.contains(roofGeometry.latLonGeometry())
+                        || provided.intersects(roofGeometry.latLonGeometry())))
         .toList();
   }
 
@@ -204,8 +250,33 @@ public class GeometryConverter {
             .map(pair -> new Coordinate(pair.get(0).doubleValue(), pair.get(1).doubleValue()))
             .toArray(Coordinate[]::new);
 
+    coordinates = ensureClosed(coordinates);
+
     LinearRing shell = geometryFactory.createLinearRing(coordinates);
-    return geometryFactory.createPolygon(shell);
+
+    Polygon polygon = geometryFactory.createPolygon(shell);
+
+    if (!polygon.isValid()) {
+      var fixGeometry = GeometryFixer.fix(polygon);
+      if (fixGeometry instanceof Polygon) {
+        polygon = (Polygon) fixGeometry; // ou polygon.buffer(0)
+      } else if (fixGeometry instanceof MultiPolygon) {
+        polygon = (Polygon) fixGeometry.getGeometryN(0);
+      }
+    }
+
+    return polygon;
+  }
+
+  private static Coordinate[] ensureClosed(Coordinate[] coords) {
+    if (coords.length == 0) return coords;
+    if (!coords[0].equals2D(coords[coords.length - 1])) {
+      Coordinate[] closed = new Coordinate[coords.length + 1];
+      System.arraycopy(coords, 0, closed, 0, coords.length);
+      closed[coords.length] = coords[0];
+      return closed;
+    }
+    return coords;
   }
 
   public MultiPolygon apply(List<List<List<List<BigDecimal>>>> multiPolygonData) {
@@ -287,9 +358,16 @@ public class GeometryConverter {
     for (int i = 0; i < ringData.size(); i++) {
       List<BigDecimal> point = ringData.get(i);
       if (point.size() < 2) {
-        throw new IllegalArgumentException("Each point must have at least 2 coordinates (x, y)");
+        throw new IllegalArgumentException("Each feature must have at least 2 coordinates (x, y)");
       }
       coordinates[i] = new Coordinate(point.get(0).doubleValue(), point.get(1).doubleValue());
+    }
+    if (coordinates.length > 0 && !coordinates[0].equals2D(coordinates[coordinates.length - 1])) {
+
+      Coordinate[] closed = new Coordinate[coordinates.length + 1];
+      System.arraycopy(coordinates, 0, closed, 0, coordinates.length);
+      closed[closed.length - 1] = coordinates[0];
+      coordinates = closed;
     }
     return geometryFactory.createLinearRing(coordinates);
   }
@@ -312,7 +390,12 @@ public class GeometryConverter {
 
   @SneakyThrows
   public Geometry readGeometryFromString(String geoJsonString) {
-    GeometryJSON geometryJSON = new GeometryJSON(15);
+    return readGeometryFromString(geoJsonString, 15);
+  }
+
+  @SneakyThrows
+  public Geometry readGeometryFromString(String geoJsonString, int decimals) {
+    GeometryJSON geometryJSON = new GeometryJSON(decimals);
     return geometryJSON.read(new StringReader(geoJsonString));
   }
 
@@ -352,7 +435,7 @@ public class GeometryConverter {
 
   public static BinaryOperator<MultiPolygon> unifyMultiPolygon() {
     return (multiPolygon1, multiPolygon2) -> {
-      var unifiedGeometry = multiPolygon1.union(multiPolygon2);
+      var unifiedGeometry = multiPolygon1.union(multiPolygon2).buffer(0);
       if (unifiedGeometry instanceof MultiPolygon multiPolygon) {
         return multiPolygon;
       } else if (unifiedGeometry instanceof Polygon polygon) {
@@ -361,6 +444,23 @@ public class GeometryConverter {
       }
       throw new UnsupportedOperationException("Unsupported unified geometry : " + unifiedGeometry);
     };
+  }
+
+  public static MultiPolygon getRoofMultiPolygon(
+      app.bpartners.geojobs.endpoint.rest.model.Feature roofFeature) {
+    GeometryConverter geometryConverter = new GeometryConverter(null);
+    MultiPolygon roofGeometry;
+    var geometryInstance = roofFeature.getGeometry().getActualInstance();
+    switch (geometryInstance) {
+      case app.bpartners.geojobs.endpoint.rest.model.Polygon restPolygon ->
+          roofGeometry = geometryConverter.apply(List.of(restPolygon.getCoordinates()));
+      case app.bpartners.geojobs.endpoint.rest.model.MultiPolygon restMultiPolygon ->
+          roofGeometry = geometryConverter.apply(restMultiPolygon.getCoordinates());
+      default ->
+          throw new IllegalStateException(
+              "Unsupported geometry type for roof: " + geometryInstance);
+    }
+    return roofGeometry;
   }
 
   private List<BigDecimal> lonLatToMeters(BigDecimal lon, BigDecimal lat) {

@@ -14,6 +14,7 @@ import app.bpartners.geojobs.endpoint.event.model.status.ParcelDetectionStatusRe
 import app.bpartners.geojobs.endpoint.event.model.status.ZDJStatusRecomputingSubmitted;
 import app.bpartners.geojobs.repository.model.detection.ParcelDetectionJob;
 import app.bpartners.geojobs.service.AnnotationRetrievingJobService;
+import app.bpartners.geojobs.service.detection.RoofCoveringDetector;
 import app.bpartners.geojobs.sqs.EventProducerInvocationMock;
 import app.bpartners.geojobs.sqs.LocalEventQueue;
 import app.bpartners.geojobs.utils.detection.DetectionIT;
@@ -34,6 +35,7 @@ class ParcelDetectionJobCreatedIT extends DetectionIT {
   @MockBean protected AnnotationRetrievingJobService annotationRetrievingJobServiceMock;
   @Autowired LocalEventQueue localEventQueue;
   @MockBean EventProducer eventProducerMock;
+  @MockBean RoofCoveringDetector roofCoveringDetectorMock;
   EventProducerInvocationMock eventProducerInvocationMock = new EventProducerInvocationMock();
 
   @BeforeEach
@@ -44,6 +46,7 @@ class ParcelDetectionJobCreatedIT extends DetectionIT {
                 eventProducerInvocationMock.apply(localEventQueue, invocationOnMock))
         .when(eventProducerMock)
         .accept(any());
+    when(roofCoveringDetectorMock.apply(any(), any())).thenReturn(null);
     when(jobAnnotationServiceMock.processAnnotationJob(any(), any())).thenReturn(null);
     when(annotationRetrievingJobServiceMock.findAllByDetectionJobId(any())).thenReturn(List.of());
     doNothing().when(mailerMock).accept(any());

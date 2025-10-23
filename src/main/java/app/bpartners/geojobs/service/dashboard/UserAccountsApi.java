@@ -19,7 +19,7 @@ import org.springframework.web.util.UriComponentsBuilder;
 @Component
 @RequiredArgsConstructor
 public class UserAccountsApi {
-  private final RestTemplate restTemplate = new RestTemplate();
+  private final RestTemplate restTemplate;
   private final ApiConfiguration apiConfiguration;
   private final SecurityApi securityApi;
 

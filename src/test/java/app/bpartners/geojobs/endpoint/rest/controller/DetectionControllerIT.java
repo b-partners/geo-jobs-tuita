@@ -36,8 +36,10 @@ import app.bpartners.geojobs.endpoint.rest.security.authorizer.DetectionAuthoriz
 import app.bpartners.geojobs.endpoint.rest.security.model.Principal;
 import app.bpartners.geojobs.file.FileWriter;
 import app.bpartners.geojobs.file.bucket.BucketComponent;
+import app.bpartners.geojobs.file.bucket.CustomBucketComponent;
 import app.bpartners.geojobs.job.model.JobStatus;
 import app.bpartners.geojobs.model.exception.BadRequestException;
+import app.bpartners.geojobs.model.exception.NotImplementedException;
 import app.bpartners.geojobs.model.page.BoundedPageSize;
 import app.bpartners.geojobs.model.page.PageFromOne;
 import app.bpartners.geojobs.repository.CommunityAuthorizationRepository;
@@ -60,6 +62,7 @@ import java.io.File;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.List;
+import java.util.TreeMap;
 import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
 import org.junit.jupiter.api.BeforeEach;
@@ -69,6 +72,7 @@ import org.mockito.ArgumentCaptor;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.core.io.ClassPathResource;
+import software.amazon.awssdk.services.s3.model.S3Object;
 
 @Slf4j
 class DetectionControllerIT extends FacadeIT {
@@ -91,6 +95,7 @@ class DetectionControllerIT extends FacadeIT {
   @MockBean AuthProvider authProviderMock;
   @Autowired CommunityAuthorizationRepository communityAuthRepository;
   @Autowired FileWriter fileWriter;
+  @MockBean CustomBucketComponent customBucketComponent;
   FeatureCreator featureCreator = new FeatureCreator();
   DetectionCreator detectionCreator = new DetectionCreator(featureCreator);
   TaskStatisticCreator taskStatisticCreator = new TaskStatisticCreator();
@@ -240,7 +245,7 @@ class DetectionControllerIT extends FacadeIT {
     subject.processDetection(randomUUID().toString(), createDetection());
 
     var listCaptor = ArgumentCaptor.forClass(List.class);
-    verify(eventProducer, times(4)).accept(listCaptor.capture());
+    verify(eventProducer, times(2)).accept(listCaptor.capture());
     var detectionSavedEvent =
         (DetectionSaved)
             listCaptor.getAllValues().stream()
@@ -271,16 +276,23 @@ class DetectionControllerIT extends FacadeIT {
     var statistic = taskStatisticCreator.createProcessingTask(zoneDetectionJob.getId(), DETECTION);
     when(zoneDetectionJobService.getTaskStatistic(any(String.class))).thenReturn(statistic);
 
-    var actual = subject.getDetections(new PageFromOne(1), new BoundedPageSize(10));
+    var actual = subject.getDetections(new PageFromOne(1), new BoundedPageSize(10), null, null);
 
     var expected =
         new app.bpartners.geojobs.endpoint.rest.model.Detection()
             .id(detection.getEndToEndId())
+            .creationDatetime(detection.getCreationDatetime())
             .geoJsonZone(featureCreator.defaultFeatures())
             .step(
                 detectionStepStatisticMapper.toRestDetectionStepStatus(
                     statistic, DetectionStepName.MACHINE_DETECTION))
             .geoJsonOutput(ZIP);
+
+    // reordering the unordered geoJsonZone.properties because the test use a strict comparaison
+    expected = orderGeoJsonProperties(expected);
+    actual = List.of(orderGeoJsonProperties(actual.getFirst()));
+
+    assertNotNull(detection.getCreationDatetime());
     assertEquals(List.of(expected), actual);
   }
 
@@ -291,15 +303,35 @@ class DetectionControllerIT extends FacadeIT {
         detectionRepository.save(
             detectionWithoutZdj(zoneTilingJob.getId(), featureCreator.defaultFeatures()));
 
-    var actual = subject.getDetections(new PageFromOne(1), new BoundedPageSize(10));
+    var actual = subject.getDetections(new PageFromOne(1), new BoundedPageSize(10), null, null);
 
     var expected =
         new app.bpartners.geojobs.endpoint.rest.model.Detection()
             .id(detection.getEndToEndId())
+            .creationDatetime(detection.getCreationDatetime())
             .geoJsonZone(featureCreator.defaultFeatures())
             .step(actual.getFirst().getStep())
             .geoJsonOutput(GEO_JSON);
+
+    // reordering the unordered geoJsonZone.properties because the test use a strict comparaison
+    expected = orderGeoJsonProperties(expected);
+    actual = List.of(orderGeoJsonProperties(actual.getFirst()));
+
+    assertNotNull(detection.getCreationDatetime());
     assertEquals(List.of(expected), actual);
+  }
+
+  private static app.bpartners.geojobs.endpoint.rest.model.Detection orderGeoJsonProperties(
+      app.bpartners.geojobs.endpoint.rest.model.Detection detection) {
+    return new app.bpartners.geojobs.endpoint.rest.model.Detection()
+        .id(detection.getId())
+        .creationDatetime(detection.getCreationDatetime())
+        .step(detection.getStep())
+        .geoJsonOutput(detection.getGeoJsonOutput())
+        .geoJsonZone(
+            detection.getGeoJsonZone().stream()
+                .map(f -> f.properties(new TreeMap<>(f.getProperties())))
+                .toList());
   }
 
   @Test
@@ -312,7 +344,7 @@ class DetectionControllerIT extends FacadeIT {
                     .endToEndId(randomUUID().toString())
                     .build());
 
-    var actualList = subject.getDetections(new PageFromOne(1), new BoundedPageSize(1));
+    var actualList = subject.getDetections(new PageFromOne(1), new BoundedPageSize(1), null, null);
 
     assertEquals(detection.getEndToEndId(), actualList.getFirst().getId());
   }
@@ -340,6 +372,7 @@ class DetectionControllerIT extends FacadeIT {
                 .endToEndId(e2Id)
                 .communityOwnerId(communityOwnerId)
                 .build());
+    when(customBucketComponent.listObjects(any(), any())).thenReturn(List.of(mock(S3Object.class)));
     when(bucketComponentMock.presign(any())).thenReturn(presignedUrl);
 
     var actual = subject.configureDetectionShapeFile(e2Id, fileWriter.writeAsByte(dummyShapeFile));
@@ -354,35 +387,13 @@ class DetectionControllerIT extends FacadeIT {
   @SneakyThrows
   @Test
   void configure_image_file_ok() {
-    var presignedUrl = "http://localhost/presignedImageFile";
-    File dummyImageFile = new ClassPathResource("/geometry/mask.png").getFile();
-    var communityOwnerId = randomUUID().toString();
-    var savedCommunity =
-        communityAuthRepository.save(
-            CommunityAuthorization.builder()
-                .id(communityOwnerId)
-                .name("dummy")
-                .apiKey("dummy")
-                .maxSurfaceUnit(SQUARE_DEGREE)
-                .maxSurface(10)
-                .build());
-    var e2Id = randomUUID().toString();
-    var detection =
-        detectionRepository.save(
-            detectionWithoutZdj(null).toBuilder()
-                .endToEndId(e2Id)
-                .communityOwnerId(communityOwnerId)
-                .build());
-    when(bucketComponentMock.presign(any())).thenReturn(presignedUrl);
+    var actualException =
+        assertThrows(
+            NotImplementedException.class,
+            () -> subject.configureRooferDetectionImageFile(randomUUID().toString(), new byte[0]));
 
-    var actual =
-        subject.configureRooferDetectionImageFile(e2Id, fileWriter.writeAsByte(dummyImageFile));
-
-    assertNull(detection.getImageFileKey());
-    assertEquals(presignedUrl, actual.getImageUrl());
-
-    detectionRepository.delete(detection);
-    communityAuthRepository.delete(savedCommunity);
+    assertEquals(
+        "POST /detections/{id}/image not supported anymore.", actualException.getMessage());
   }
 
   @SneakyThrows

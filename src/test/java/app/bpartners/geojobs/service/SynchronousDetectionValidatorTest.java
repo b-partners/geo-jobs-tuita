@@ -1,97 +1,94 @@
 package app.bpartners.geojobs.service;
 
+import static app.bpartners.geojobs.endpoint.rest.model.Feature.TypeEnum.FEATURE;
 import static app.bpartners.geojobs.endpoint.rest.model.ModelName.TOITURE;
-import static app.bpartners.geojobs.endpoint.rest.model.ModelName.TROTTOIRS;
-import static org.junit.Assert.assertThrows;
-import static org.junit.Assert.assertTrue;
+import static app.bpartners.geojobs.endpoint.rest.model.ModelName.VOIRIE_TROTTOIRS;
+import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.*;
 
 import app.bpartners.geojobs.endpoint.rest.model.*;
 import app.bpartners.geojobs.model.exception.NotImplementedException;
-import java.util.Collections;
+import java.math.BigDecimal;
+import java.util.HashMap;
 import java.util.List;
 import org.junit.jupiter.api.Test;
 
 class SynchronousDetectionValidatorTest {
-  GeometryTiledValidator geometryTiledValidator = mock();
 
-  SynchronousDetectionValidator subject = new SynchronousDetectionValidator(geometryTiledValidator);
+  SynchronousDetectionValidator subject = new SynchronousDetectionValidator();
 
   @Test
   void accept_throwsNotImplementedException_whenModelNameIsNotToiture() {
     var createDetectionMock = mock(CreateDetection.class);
     var detectableObjectModelMock = mock(DetectableObjectModel.class);
     when(createDetectionMock.getDetectableObjectModel()).thenReturn(detectableObjectModelMock);
-    when(detectableObjectModelMock.getModelName()).thenReturn(TROTTOIRS);
+    when(detectableObjectModelMock.getModelName()).thenReturn(VOIRIE_TROTTOIRS);
     NotImplementedException thrown =
-        assertThrows(NotImplementedException.class, () -> subject.accept(createDetectionMock));
+        assertThrows(NotImplementedException.class, () -> subject.apply(createDetectionMock));
 
     assertTrue(
         thrown.getMessage().contains("Only BP_TOITURE detection model is supported for now"));
-    assertTrue(thrown.getMessage().contains("otherwise, model provided is " + TROTTOIRS));
+    assertTrue(thrown.getMessage().contains("otherwise, model provided is " + VOIRIE_TROTTOIRS));
 
     verify(createDetectionMock, times(1)).getDetectableObjectModel();
     verify(detectableObjectModelMock, times(1)).getModelName();
-    verifyNoMoreInteractions(detectableObjectModelMock, geometryTiledValidator);
   }
 
   @Test
-  void accept_throwsNotImplementedException_whenGeoJsonZoneIsEmpty() {
-    var createDetectionMock = mock(CreateDetection.class);
-    var detectableObjectModelMock = mock(DetectableObjectModel.class);
-
-    when(createDetectionMock.getDetectableObjectModel()).thenReturn(detectableObjectModelMock);
-    when(detectableObjectModelMock.getModelName()).thenReturn(TOITURE);
-    when(createDetectionMock.getGeoJsonZone()).thenReturn(Collections.emptyList());
-
-    NotImplementedException thrown =
-        assertThrows(NotImplementedException.class, () -> subject.accept(createDetectionMock));
-
-    assert (thrown.getMessage().contains("Only one feature supported"));
-    assert (thrown.getMessage().contains("provided geoJson features.size = 0"));
-
-    verify(createDetectionMock, times(1)).getDetectableObjectModel();
-    verify(detectableObjectModelMock, times(1)).getModelName();
-    verify(createDetectionMock, times(1)).getGeoJsonZone();
-    verifyNoMoreInteractions(
-        createDetectionMock, detectableObjectModelMock, geometryTiledValidator);
-  }
-
-  @Test
-  void accept_throwsNotImplementedException_whenGeoJsonIsNotContainedInFrame() {
-    var createDetectionMock = mock(CreateDetection.class);
+  void return_fixed_multi_polygon_to_polygon_geo_json_when_unique_multi_polygon() {
     var detectableObjectModelMock = mock(DetectableObjectModel.class);
     var featureMock = mock(Feature.class);
     var featureGeometryMock = mock(FeatureGeometry.class);
-    var geometryMock = mock(Geometry.class);
-
-    when(createDetectionMock.getDetectableObjectModel()).thenReturn(detectableObjectModelMock);
+    var multiPolygonMock = mock(MultiPolygon.class);
     when(detectableObjectModelMock.getModelName()).thenReturn(TOITURE);
-    when(createDetectionMock.getGeoJsonZone()).thenReturn(List.of(featureMock));
+    HashMap<String, Object> featureProperties = new HashMap<>();
+    when(featureMock.getProperties()).thenReturn(featureProperties);
+    when(multiPolygonMock.getCoordinates()).thenReturn(List.of(expectedPolygonCoordinates()));
+    when(featureGeometryMock.getActualInstance()).thenReturn(multiPolygonMock);
     when(featureMock.getGeometry()).thenReturn(featureGeometryMock);
-    when(featureGeometryMock.getActualInstance()).thenReturn(geometryMock);
-    when(geometryTiledValidator.apply(geometryMock)).thenReturn(false);
+    var providedCreatedDetection =
+        new CreateDetection()
+            .detectableObjectModel(detectableObjectModelMock)
+            .geoJsonZone(List.of(featureMock));
 
-    NotImplementedException thrown =
-        assertThrows(NotImplementedException.class, () -> subject.accept(createDetectionMock));
+    var actual = subject.apply(providedCreatedDetection);
 
-    assertTrue(
-        thrown
-            .getMessage()
-            .contains("Provided geojson polygon is too large to be processed synchronously"));
+    assertEquals(
+        providedCreatedDetection.geoJsonZone(
+            List.of(
+                new Feature()
+                    .type(FEATURE)
+                    .properties(featureProperties)
+                    .geometry(
+                        new FeatureGeometry(
+                            new Polygon()
+                                .type(Polygon.TypeEnum.POLYGON)
+                                .coordinates(expectedPolygonCoordinates()))))),
+        actual);
+  }
 
-    verify(createDetectionMock, times(1)).getDetectableObjectModel();
-    verify(detectableObjectModelMock, times(1)).getModelName();
-    verify(createDetectionMock, times(1)).getGeoJsonZone();
-    verify(featureMock, times(1)).getGeometry();
-    verify(featureGeometryMock, times(1)).getActualInstance();
-    verify(geometryTiledValidator, times(1)).apply(geometryMock);
-    verifyNoMoreInteractions(
-        createDetectionMock,
-        detectableObjectModelMock,
-        featureMock,
-        featureGeometryMock,
-        geometryMock,
-        geometryTiledValidator);
+  @Test
+  void return_provided_polygon_when_unique_polygon() {
+    var detectableObjectModelMock = mock(DetectableObjectModel.class);
+    var featureMock = mock(Feature.class);
+    var featureGeometryMock = mock(FeatureGeometry.class);
+    var polygonMock = mock(app.bpartners.gen.annotator.endpoint.rest.model.Polygon.class);
+    when(detectableObjectModelMock.getModelName()).thenReturn(TOITURE);
+    HashMap<String, Object> featureProperties = new HashMap<>();
+    when(featureMock.getProperties()).thenReturn(featureProperties);
+    when(featureGeometryMock.getActualInstance()).thenReturn(polygonMock);
+    when(featureMock.getGeometry()).thenReturn(featureGeometryMock);
+    var providedCreatedDetection =
+        new CreateDetection()
+            .detectableObjectModel(detectableObjectModelMock)
+            .geoJsonZone(List.of(featureMock));
+
+    var actual = subject.apply(providedCreatedDetection);
+
+    assertEquals(providedCreatedDetection, actual);
+  }
+
+  private List<List<List<BigDecimal>>> expectedPolygonCoordinates() {
+    return List.of(List.of(List.of(BigDecimal.valueOf(0L), BigDecimal.valueOf(1L))));
   }
 }

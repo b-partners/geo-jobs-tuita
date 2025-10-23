@@ -1,7 +1,5 @@
 package app.bpartners.geojobs.service.tiling;
 
-import static app.bpartners.geojobs.repository.model.detection.DetectableType.TOITURE_REVETEMENT;
-
 import app.bpartners.geojobs.model.geometry.TiledPixelPolygon;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
@@ -31,12 +29,11 @@ public class TiledPixelPolygonFilter {
                                     tiledPixelPolygon.tileX(),
                                     tiledPixelPolygon.tileY(),
                                     tiledPixelPolygon.zoom());
-                            return preparedMask.intersects(geoPolygon)
-                                && !TOITURE_REVETEMENT.equals(pixelPolygon.objectType());
+                            return preparedMask.intersects(geoPolygon);
                           })
                       .toList();
               return new TiledPixelPolygon(
-                  tiledPixelPolygon.point(),
+                  tiledPixelPolygon.feature(),
                   filteredGeoPolygons,
                   tiledPixelPolygon.tileX(),
                   tiledPixelPolygon.tileY(),

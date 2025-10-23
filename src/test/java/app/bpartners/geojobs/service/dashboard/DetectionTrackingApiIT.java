@@ -14,6 +14,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
+import org.springframework.web.client.RestTemplate;
 
 @Disabled("TODO: local use only, disable otherwise")
 @Slf4j
@@ -22,8 +23,10 @@ class DetectionTrackingApiIT {
   final ObjectMapper objectMapper = new ObjectMapper().findAndRegisterModules();
   final ApiConfiguration apiConfiguration =
       new ApiConfiguration(System.getenv("BPARTNERS_API_URL"));
+  final RestTemplate restTemplate = new RestTemplate();
   DetectionTrackingApi subject =
-      new DetectionTrackingApi(apiConfiguration, new SecurityApi(apiConfiguration, objectMapper));
+      new DetectionTrackingApi(
+          apiConfiguration, new SecurityApi(restTemplate, apiConfiguration, objectMapper));
 
   @BeforeEach
   void setUp() {

@@ -14,6 +14,7 @@ import app.bpartners.geojobs.repository.ZoneDetectionJobRepository;
 import app.bpartners.geojobs.repository.model.detection.Detection;
 import app.bpartners.geojobs.repository.model.detection.ZoneDetectionJob;
 import app.bpartners.geojobs.repository.model.geojson.GeoJsonConversionJob;
+import app.bpartners.geojobs.service.event.DetectionSucceededService;
 import app.bpartners.geojobs.service.event.GeoJsonConversionAssemblySucceededService;
 import app.bpartners.geojobs.template.HTMLTemplateParser;
 import java.time.ZoneId;
@@ -34,11 +35,12 @@ class GeoJsonConversionAssemblySucceededServiceTest {
       mock(ZoneDetectionJobRepository.class);
   GeoJsonConversionAssemblySucceededService subject =
       new GeoJsonConversionAssemblySucceededService(
-          detectionFinishedMailerMock,
-          htmlTemplateParser,
-          detectionRepositoryMock,
-          bucketComponentMock,
-          zoneDetectionJobRepositoryMock);
+          new DetectionSucceededService(
+              detectionFinishedMailerMock,
+              htmlTemplateParser,
+              detectionRepositoryMock,
+              bucketComponentMock,
+              zoneDetectionJobRepositoryMock));
   private final String zoneDetectionJobId = randomUUID().toString();
   private final String detectionE2Id = randomUUID().toString();
 

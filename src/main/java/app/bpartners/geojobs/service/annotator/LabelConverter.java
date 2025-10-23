@@ -20,6 +20,7 @@ public class LabelConverter implements Function<DetectableType, Label> {
 
   private static String getColorFromDetectedType(DetectableType detectableType) {
     return switch (detectableType) {
+      case ROAD -> "#de833e";
       case TOITURE_REVETEMENT -> "#DFFF00";
       case PANNEAU_PHOTOVOLTAIQUE -> "#0E4EB3";
       case PISCINE -> "#0DCBD2";
@@ -45,6 +46,7 @@ public class LabelConverter implements Function<DetectableType, Label> {
       case TOMBE -> null;
       case ESPACE_VERT_PARKING -> "#93c47d";
       case BACKGROUND -> null;
+      default -> null;
     };
   }
 }

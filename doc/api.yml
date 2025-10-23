@@ -18,7 +18,6 @@ info:
     1. If your zone is described by a **GeoJson**, then just set accordingly the `geoJsonZone` field in the payload.
     2. If your zone is described by a **Shape file**, then upload it in a second call `POST /detections/{id}/shape`.
     3. If your zone is described by a list of addresses in an **Excel file**, then upload it in a second call `POST /detections/{id}/excel`.
-    4. If your zone is described by an **Image**, then upload it in a second call `POST /detections/{id}/image`.
     
     # Examples
     
@@ -568,11 +567,11 @@ paths:
           required: false
       responses:
         200:
-          description: Image of provided address
+          description: Image details of provided address
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ImageOfAddress'
+                $ref: '#/components/schemas/ImageDetails'
   '/detections':
     get:
       tags:
@@ -587,6 +586,18 @@ paths:
           name: pageSize
           schema:
             $ref: "#/components/schemas/PageSize"
+        - in: query
+          name: from
+          schema:
+            type: string
+            format: date-time
+          required: false
+        - in: query
+          name: to
+          schema:
+            type: string
+            format: date-time
+          required: false
       responses:
         200:
           description: List of detections
@@ -646,6 +657,71 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Detection'
+  '/detections/{id}/step':
+    put:
+      deprecated: true
+      tags:
+        - Detection
+      operationId: updateDetectionStep
+      summary: Update detection step
+      description: |
+        Update detection step
+      security:
+        - ApiKeyAuth: [ ]
+      parameters:
+        - in: path
+          name: id
+          schema:
+            type: string
+          description: Detection identifier
+          required: true
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DetectionStep'
+      responses:
+        200:
+          description: Detection with updated step
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Detection'
+  '/communities/{communityOwnerId}/detections/{id}/step':
+    put:
+      tags:
+        - Detection
+      operationId: updateCommunityDetectionStep
+      summary: Update detection step for specific community detection
+      description: |
+        Update detection step for specific community detection
+      security:
+        - ApiKeyAuth: [ ]
+      parameters:
+        - in: path
+          name: communityOwnerId
+          schema:
+            type: string
+          description: Community owner identifier
+          required: true
+        - in: path
+          name: id
+          schema:
+            type: string
+          description: Detection identifier
+          required: true
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DetectionStep'
+      responses:
+        200:
+          description: Detection with updated step
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Detection'
   '/detections/{id}/addresses':
     post:
       tags:
@@ -668,30 +744,6 @@ paths:
       responses:
         200:
           description: Detection launched with provided textual addresses
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Detection'
-  '/detections/{id}/roofDelimiter':
-    post:
-      tags:
-        - Roof
-      summary: Launch detection on delimited roof
-      operationId: detectOnDelimitedRoof
-      description: |
-        Provide roof delimiter used in `BP_TOITURE` model and launches detection.
-      security:
-        - ApiKeyAuth: [ ]
-      parameters:
-        - $ref: '#/components/parameters/IdentifierParameter'
-      requestBody:
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/RoofDelimiter'
-      responses:
-        200:
-          description: Detection launched on roof delimiter
           content:
             application/json:
               schema:
@@ -751,6 +803,26 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Detection'
+  /detections/{id}/roofs/properties:
+    put:
+      parameters:
+        - in: path
+          name: id
+          schema:
+            type: string
+          required: true
+      operationId: computeDetectionRoofsProperties
+      responses:
+        200:
+          description: Detection with computed roofSlope
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Detection'
+        400:
+          description: Detection without roofs retrieved exception or Detection without BP_TOITURE model
+        404:
+          description: Detection not found
   '/detections/{id}/roofer/email':
     post:
       tags:
@@ -811,38 +883,6 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Detection'
-
-  '/detections/{id}/image':
-    post:
-      tags:
-        - Image
-      operationId: detectImage
-      summary: Submit detection over an image
-      description: |
-        For security reasons, only image already previously queried from `GET /image` are supported for the moment.
-        This ensures that only small enough images are submitted, and that images quality fit the requirements of our AI models.
-      security:
-        - ApiKeyAuth: [ ]
-      parameters:
-        - $ref: '#/components/parameters/IdentifierParameter'
-      requestBody:
-        description: Image from a specific textual address to be detected
-        content:
-          multipart/form-data:
-            schema:
-              type: object
-              properties:
-                file:
-                  type: string
-                  format: binary
-      responses:
-        200:
-          description: Detection with updated image file uploaded url
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Detection'
-
   '/detections/{id}/pdf':
     post:
       tags:
@@ -1101,7 +1141,16 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/AuthorizedZone'
+        detectableObjectModel:
+          deprecated: true
+          allOf:
+            - $ref: '#/components/schemas/DetectableObjectModel'
+        allowedModels:
+          type: array
+          items:
+            $ref: '#/components/schemas/DetectableObjectModel'
         detectableObjectTypes:
+          deprecated: true
           type: array
           items:
             $ref: '#/components/schemas/DetectableObjectType'
@@ -1370,8 +1419,11 @@ components:
         - PISCINE
         - PASSAGE_PIETON
         - ARBRE
+        - ARBRE_INDIVIDUALISE
+        - CANOPE
         - TROTTOIR
         - LINE
+        - ESPACE_ARBORE
         - ESPACE_VERT
         - VOIE_CARROSSABLE
         - PARKING
@@ -1394,8 +1446,19 @@ components:
         - BATI_BETON
         - BATI_ARDOISE
         - BATI_AUTRES
+        - BATI
         - ESPACE_VERT_PARKING
         - BACKGROUND
+        - ROAD
+        - SURFACES_ARTIFICIALISEES
+        - SURFACES_PERMEABLES
+        - PISTES_CYCLABLES
+        - SYMBOLES_CYCLABLES
+        - MARQUAGES_VOIRIES
+        - CIMETIERE
+        - TOMBE_SIMPLE
+        - TOMBE_DOUBLE
+        - TOMBE_NON_GEOMETRIQUE
     ProcessJobAnnotation:
       type: object
       properties:
@@ -1482,16 +1545,19 @@ components:
           type: string
           format: date-time
         coordinates:
-          type: object
-          properties:
-            x:
-              type: integer
-            y:
-              type: integer
-            z:
-              type: integer
+          allOf:
+            - $ref: '#/components/schemas/TileCoordinates'
         bucketPath:
           type: string
+    TileCoordinates:
+      type: object
+      properties:
+        x:
+          type: integer
+        y:
+          type: integer
+        z:
+          type: integer
     TileInfo:
       properties:
         size:
@@ -1502,14 +1568,8 @@ components:
             height:
               type: integer
         coordinates:
-          type: object
-          properties:
-            x:
-              type: integer
-            y:
-              type: integer
-            z:
-              type: integer
+          allOf:
+            - $ref: '#/components/schemas/TileCoordinates'
     DetectedTile:
       properties:
         tileId:
@@ -1682,12 +1742,12 @@ components:
         - UNDERSCORE
         - SLASH
     DetectionStepName:
+      type: string
       enum:
-        - CONFIGURING
+        - REQUEST_ACCEPTED
         - TILING
         - MACHINE_DETECTION
-        - HUMAN_DETECTION
-        - GEO_JSON_CONVERSION
+        - POST_PROCESSING
     DetectionStepStatistic:
       allOf:
         - $ref: '#/components/schemas/StatusStatistic'
@@ -1698,14 +1758,35 @@ components:
           $ref: '#/components/schemas/ModelName'
     ModelName:
       type: string
+      description: |
+        Possible values and included objects :
+          - **BP_TOITURE** : Toiture, velux, panneau photovoltaique, moisissure, usure, fissure cassure, obstacle, cheminee, humidite, risque feu, ombre
+          - **BP_LOM** : Passage piéton
+          - **BP_ZAN** : Arbre, espace vert, toiture, voie carrossable, trottoir, parking
+          - **BP_CLIMAT_RESILIENCE** : Parking, panneau photovoltaique
+          - **BP_CONFIRMITE_PLU** : Bati, velux, panneau photovoltaique, Piscine
+          - **BP_VOIRIE_TROTTOIRS** : Trottoir, voie carrossable
+          - **BP_OLD** : Arbre, espace vert, toiture, voie carrossable, trottoir, parking, risquefeu
+          - **BP_CYCL** : Pistes cyclables, symboles cyclables 
+          - **BP_SIGN** : Marquages voiries
+          - **BP_VEGETATION** : Espace vert, Espace arboré, arbre individualisé, canopée
+          - **BP_TAMPONS** : Tampons de voiries, avaloirs, tampons hydroliques
+          - **BP_CIMETIERE** : Cimetière, espace arboré, espace vert, tombe simple, tombe double, tombe non géométrique
+          - **BP_STATIONNEMENT** : Parking
       enum:
         - BP_TOITURE
         - BP_LOM
         - BP_ZAN
         - BP_CLIMAT_RESILIENCE
         - BP_CONFIRMITE_PLU
-        - BP_TROTTOIRS
+        - BP_VOIRIE_TROTTOIRS
         - BP_OLD
+        - BP_CYCL
+        - BP_SIGN
+        - BP_VEGETATION
+        - BP_TAMPONS
+        - BP_CIMETIERE
+        - BP_STATIONNEMENT
     CreateDetection:
       type: object
       properties:
@@ -1728,8 +1809,16 @@ components:
             $ref: '#/components/schemas/Feature'
           description: |
             Optional. If so, must shape file or excel file or image file through its specific endpoint.
+        geoJsonDelimitationType:
+          type: string
+          enum:
+            - ROOF
+            - ZONE
         geoJsonOutput:
           $ref: '#/components/schemas/GeoJsonOutput'
+        needsImageOutput:
+          type: boolean
+          default: false
     DetectionStep:
       properties:
         name:
@@ -1775,6 +1864,9 @@ components:
             type: string
         roofDelimiter:
           $ref: '#/components/schemas/RoofDelimiter'
+        creationDatetime:
+          type: string
+          format: date-time
     Prospect:
       type: object
       properties:
@@ -1793,8 +1885,24 @@ components:
       properties:
         address:
           type: string
+    ImageDetails:
+      allOf:
+        - $ref: '#/components/schemas/ImageOfAddress'
+      properties:
+        minTileCoordinates:
+          $ref: '#/components/schemas/TileCoordinates'
+        currentGeoPosition:
+          $ref: '#/components/schemas/GeoPosition'
+    GeoPosition:
+      type: object
+      properties:
+        longitude:
+          type: number
+        latitude:
+          type: number
     ImageOfAddress:
       type: object
+      deprecated: true
       properties:
         address:
           type: string
@@ -1805,6 +1913,10 @@ components:
       description: |
         Optional. Mandatory only when doing sync detection using TOITURE model.
       properties:
+        roofSlopeInDegree:
+          type: number
+        roofHeightInMeter:
+          type: number
         polygon:
           type: array
           items:

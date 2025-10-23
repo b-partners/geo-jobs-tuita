@@ -4,4 +4,4 @@ import app.bpartners.geojobs.endpoint.rest.model.Feature;
 import java.util.List;
 
 public record TiledPixelPolygon(
-    Feature point, List<PolygonObjectType> polygons, int tileX, int tileY, int zoom) {}
+    Feature feature, List<PolygonObjectType> polygons, int tileX, int tileY, int zoom) {}

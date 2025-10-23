@@ -1,21 +1,28 @@
 package app.bpartners.geojobs.service.event;
 
+import static app.bpartners.geojobs.endpoint.event.EventStack.EVENT_STACK_2;
 import static app.bpartners.geojobs.job.model.Status.HealthStatus.*;
 import static app.bpartners.geojobs.job.model.Status.ProgressionStatus.*;
 import static java.util.UUID.randomUUID;
+import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
 
 import app.bpartners.geojobs.endpoint.event.EventProducer;
+import app.bpartners.geojobs.endpoint.event.model.ZoneImageRequested;
+import app.bpartners.geojobs.endpoint.event.model.zone.ZoneDetectionJobCreated;
 import app.bpartners.geojobs.endpoint.event.model.zone.ZoneTilingJobFailed;
 import app.bpartners.geojobs.endpoint.event.model.zone.ZoneTilingJobStatusChanged;
+import app.bpartners.geojobs.endpoint.rest.model.GeoServerParameter;
+import app.bpartners.geojobs.endpoint.rest.model.GeoServerProperties;
 import app.bpartners.geojobs.job.model.JobStatus;
 import app.bpartners.geojobs.job.model.Status.HealthStatus;
 import app.bpartners.geojobs.job.model.Status.ProgressionStatus;
 import app.bpartners.geojobs.repository.DetectableObjectConfigurationRepository;
 import app.bpartners.geojobs.repository.DetectionRepository;
 import app.bpartners.geojobs.repository.TilingTaskRepository;
+import app.bpartners.geojobs.repository.model.Feature;
 import app.bpartners.geojobs.repository.model.Parcel;
 import app.bpartners.geojobs.repository.model.detection.Detection;
 import app.bpartners.geojobs.repository.model.detection.ZoneDetectionJob;
@@ -23,18 +30,21 @@ import app.bpartners.geojobs.repository.model.tiling.ZoneTilingJob;
 import app.bpartners.geojobs.service.*;
 import app.bpartners.geojobs.service.detection.ZoneDetectionJobService;
 import app.bpartners.geojobs.utils.tiling.TilingTaskCreator;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
+import lombok.extern.slf4j.Slf4j;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 
+@Slf4j
 @AutoConfigureMockMvc
 class ZoneTilingJobStatusChangedServiceTest {
   JobFinishedMailer<ZoneTilingJob> mailerMock = mock();
-  ZoneDetectionJobService jobServiceMock = mock();
+  ZoneDetectionJobService zoneDetectionJobServiceMock = mock();
   StatusChangedHandler statusChangedHandler = new StatusChangedHandler();
   DetectionRepository detectionRepositoryMock = mock();
   EventProducer eventProducerMock = mock();
@@ -46,7 +56,7 @@ class ZoneTilingJobStatusChangedServiceTest {
   ZoneTilingJobStatusChangedService subject =
       new ZoneTilingJobStatusChangedService(
           mailerMock,
-          jobServiceMock,
+          zoneDetectionJobServiceMock,
           statusChangedHandler,
           detectionRepositoryMock,
           eventProducerMock,
@@ -66,12 +76,12 @@ class ZoneTilingJobStatusChangedServiceTest {
                     FINISHED,
                     SUCCEEDED)));
 
-    doNothing().when(pointExtendedImageRequestMock).accept(any(), any(), any(), any());
+    doNothing().when(pointExtendedImageRequestMock).accept(any(), any(), any());
   }
 
   @Test
   void do_not_mail_if_old_fails_and_new_fails() {
-    when(jobServiceMock.saveZDJFromZTJ(any()))
+    when(zoneDetectionJobServiceMock.saveZDJFromZTJ(any()))
         .thenReturn(ZoneDetectionJob.builder().id("zdj_id").build());
     when(detectionRepositoryMock.findByEndToEndIdAndCommunityOwnerId(any(), any()))
         .thenReturn(Optional.ofNullable(Detection.builder().build()));
@@ -112,7 +122,7 @@ class ZoneTilingJobStatusChangedServiceTest {
     subject.accept(ztjStatusChanged1);
     subject.accept(ztjStatusChanged2);
 
-    verify(jobServiceMock, times(0)).saveZDJFromZTJ(any());
+    verify(zoneDetectionJobServiceMock, times(0)).saveZDJFromZTJ(any());
     verify(mailerMock, times(0)).accept(any());
   }
 
@@ -120,5 +130,53 @@ class ZoneTilingJobStatusChangedServiceTest {
     var statusHistory = new ArrayList<JobStatus>();
     statusHistory.add(JobStatus.builder().progression(progression).health(health).build());
     return ZoneTilingJob.builder().statusHistory(statusHistory).build();
+  }
+
+  @Test
+  void on_succeeded_trigger_zone_detection_job_created_and_zone_image_requested() {
+    var zoneDetectionJobIdentifier = randomUUID().toString();
+    var detectionIdentifier = randomUUID().toString();
+    var ztjStatusChanged = new ZoneTilingJobStatusChanged();
+    var oldJob = aZTJ(PROCESSING, UNKNOWN);
+    var newJob = aZTJ(FINISHED, SUCCEEDED);
+    ztjStatusChanged.setOldJob(oldJob);
+    ztjStatusChanged.setNewJob(newJob);
+
+    var zoneDetectionJobFromZTJ = ZoneDetectionJob.builder().id(zoneDetectionJobIdentifier).build();
+    when(zoneDetectionJobServiceMock.saveZDJFromZTJ(newJob)).thenReturn(zoneDetectionJobFromZTJ);
+    var detection =
+        Detection.builder()
+            .id(detectionIdentifier)
+            .providedGeoJsonZone(List.of(new Feature()))
+            .detectableObjectConfigurations(List.of())
+            .geoServerProperties(
+                new GeoServerProperties().geoServerParameter(new GeoServerParameter()))
+            .splitPolygonGeoJsonZone(List.of(new Feature()))
+            .needsImageOutput(true)
+            .build();
+    when(detectionRepositoryMock.findByZtjId(newJob.getId()))
+        .thenReturn(Optional.ofNullable(detection));
+    when(detectionRepositoryMock.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
+    when(objectConfigurationRepositoryMock.saveAll(any()))
+        .thenAnswer(invocation -> invocation.getArgument(0));
+    doNothing().when(detectionDelimitationRetrieverMock).accept(detection);
+    doNothing().when(pointExtendedImageRequestMock).accept(any(), any(), any());
+    doNothing().when(mailerMock).accept(any());
+
+    assertDoesNotThrow(() -> subject.accept(ztjStatusChanged));
+
+    var listCaptor = ArgumentCaptor.forClass(List.class);
+    verify(eventProducerMock, times(2)).accept(listCaptor.capture());
+    var actualZoneDetectionJobCreated =
+        (ZoneDetectionJobCreated) listCaptor.getAllValues().getFirst().getFirst();
+    var actualZoneImageRequested =
+        (ZoneImageRequested) listCaptor.getAllValues().getLast().getFirst();
+    assertEquals(
+        new ZoneDetectionJobCreated(zoneDetectionJobFromZTJ), actualZoneDetectionJobCreated);
+    assertEquals(new ZoneImageRequested(detectionIdentifier), actualZoneImageRequested);
+    assertEquals(Duration.ofSeconds(30L), actualZoneImageRequested.maxConsumerDuration());
+    assertEquals(
+        Duration.ofSeconds(30L), actualZoneImageRequested.maxConsumerBackoffBetweenRetries());
+    assertEquals(EVENT_STACK_2, actualZoneImageRequested.getEventStack());
   }
 }

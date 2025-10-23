@@ -2,11 +2,15 @@ package app.bpartners.geojobs.endpoint.rest.controller;
 
 import static app.bpartners.geojobs.endpoint.rest.model.MultiPolygon.TypeEnum.MULTI_POLYGON;
 import static org.junit.jupiter.api.Assertions.*;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 
 import app.bpartners.geojobs.conf.FacadeIT;
 import app.bpartners.geojobs.endpoint.rest.model.Feature;
 import app.bpartners.geojobs.endpoint.rest.model.FeatureGeometry;
 import app.bpartners.geojobs.endpoint.rest.model.MultiPolygon;
+import app.bpartners.geojobs.endpoint.rest.model.Point;
+import app.bpartners.geojobs.model.exception.NotImplementedException;
 import java.math.BigDecimal;
 import java.util.HashMap;
 import java.util.List;
@@ -127,10 +131,14 @@ class ParcelizationControllerIT extends FacadeIT {
 
   @Test
   void parcelization_ko() {
+    var featureMock = mock(Feature.class);
+    var geometryType = mock(FeatureGeometry.class);
+    when(geometryType.getActualInstance()).thenReturn(new Point());
+    when(featureMock.getGeometry()).thenReturn(geometryType);
     assertThrows(
-        IllegalArgumentException.class,
+        NotImplementedException.class,
         () -> {
-          List<Feature> features = List.of(new Feature());
+          List<Feature> features = List.of(featureMock);
           subject.processFeatureParcelization(features, null, null, null);
         });
   }

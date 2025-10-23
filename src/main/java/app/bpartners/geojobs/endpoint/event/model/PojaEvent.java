@@ -51,6 +51,9 @@ public abstract class PojaEvent implements Serializable {
       case EVENT_STACK_3 -> {
         return "app.bpartners.geojobs.event3";
       }
+      case EVENT_STACK_4 -> {
+        return "app.bpartners.geojobs.event4";
+      }
     }
     throw new IllegalStateException("Unknown event stack " + eventStack);
   }

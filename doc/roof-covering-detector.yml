@@ -1,0 +1,72 @@
+openapi: 3.0.3
+info:
+  title: Roof Covering Detector
+  version: 1.0.0
+
+paths:
+  /coatings:
+    post:
+      summary: Detect roof covering from an image and a mask
+      security:
+        - bearerAuth: [ ]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RoofCoveringDetectionPayload'
+      responses:
+        200:
+          description: Roof covering details
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RoofCoveringDetectionResponse"
+components:
+  schemas:
+    RoofCoveringDetectionPayload:
+      type: object
+      properties:
+        image_base64:
+          type: string
+          description: Geographic image (Base64)
+        binary_mask_base64:
+          type: string
+          description: Mask image (Base64)
+        filename:
+          type: string
+        projectname:
+          type: string
+      required:
+        - image
+        - mask
+        - filename
+        - projectname
+    RoofCoveringDetectionResponse:
+      type: object
+      properties:
+        primary:
+          $ref: "#/components/schemas/RoofCovering"
+        secondary:
+          $ref: "#/components/schemas/RoofCovering"
+    RoofCovering:
+      type: object
+      properties:
+        coating:
+          $ref: '#/components/schemas/RoofCoveringType'
+        area:
+          type: integer
+          description: Covered pixel area in the image
+    RoofCoveringType:
+      type: string
+      enum:
+        - roof_ardoise
+        - roof_asphalte_bitume
+        - roof_bac_acier
+        - roof_beton_brut
+        - roof_fibro_ciment
+        - roof_gravier
+        - roof_membrane_synthetique
+        - roof_tole_ondulee
+        - roof_tuiles
+        - roof_zinc

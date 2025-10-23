@@ -4,6 +4,7 @@ import lombok.Getter;
 
 @Getter
 public enum DetectableType {
+  ROAD(0), // TODO
   TOITURE_REVETEMENT(0),
   PANNEAU_PHOTOVOLTAIQUE(0),
   PISCINE(4000),
@@ -35,7 +36,20 @@ public enum DetectableType {
   BATI_AUTRES(0),
   TOMBE(4000),
   BACKGROUND(0),
-  ESPACE_VERT_PARKING(0); // TODO: to delete and separate
+  ESPACE_VERT_PARKING(0), // TODO: to delete and separate
+  ARBRE_INDIVIDUALISE(0),
+  CANOPE(0),
+  ESPACE_ARBORE(0),
+  BATI(0),
+  SURFACES_ARTIFICIALISEES(0),
+  SURFACES_PERMEABLES(0),
+  PISTES_CYCLABLES(0),
+  SYMBOLES_CYCLABLES(0),
+  MARQUAGES_VOIRIES(0),
+  CIMETIERE(0),
+  TOMBE_SIMPLE(0),
+  TOMBE_DOUBLE(0),
+  TOMBE_NON_GEOMETRIQUE(0);
 
   private int minAreaThreshold;
 

@@ -2,10 +2,14 @@ package app.bpartners.geojobs.service;
 
 import static app.bpartners.geojobs.file.FileWriter.createTempDirectory;
 import static java.awt.AlphaComposite.SRC_OVER;
+import static java.awt.RenderingHints.KEY_ANTIALIASING;
+import static java.awt.RenderingHints.VALUE_ANTIALIAS_ON;
+import static java.awt.geom.Path2D.WIND_EVEN_ODD;
 import static java.util.UUID.randomUUID;
 
 import app.bpartners.geojobs.model.geometry.IntXY;
 import java.awt.*;
+import java.awt.geom.Path2D;
 import java.awt.image.BufferedImage;
 import java.io.File;
 import java.util.List;
@@ -30,22 +34,33 @@ public class FilePolygonDrawer implements TriFunction<List<List<List<IntXY>>>, C
     Graphics2D g2d = imageWithAlpha.createGraphics();
     g2d.drawImage(originalImage, 0, 0, null);
     g2d.setColor(color);
-    var opacity = 0.85f;
+    var opacity = 0.9f;
     g2d.setComposite(AlphaComposite.getInstance(SRC_OVER, opacity));
 
     if (!multiPolygonPixels.isEmpty()) {
+      g2d.setRenderingHint(KEY_ANTIALIASING, VALUE_ANTIALIAS_ON);
+
       multiPolygonPixels.forEach(
           polygon -> {
-            if (!polygon.isEmpty()) {
-              polygon.forEach(
-                  ring -> {
-                    int[] xPoints = ring.stream().mapToInt(IntXY::x).toArray();
-                    int[] yPoints = ring.stream().mapToInt(IntXY::y).toArray();
-                    if (xPoints.length > 2) {
-                      g2d.fillPolygon(xPoints, yPoints, xPoints.length);
-                    }
-                  });
+            if (polygon.isEmpty()) return;
+
+            Path2D path = new Path2D.Double(WIND_EVEN_ODD);
+
+            for (var ring : polygon) {
+              if (ring.size() < 3) continue;
+              boolean first = true;
+              for (var p : ring) {
+                if (first) {
+                  path.moveTo(p.x(), p.y());
+                  first = false;
+                } else {
+                  path.lineTo(p.x(), p.y());
+                }
+              }
+              path.closePath();
             }
+
+            g2d.fill(path);
           });
     }
 

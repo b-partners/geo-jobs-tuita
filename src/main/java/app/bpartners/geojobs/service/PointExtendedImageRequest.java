@@ -23,7 +23,7 @@ public class PointExtendedImageRequest {
   private final GeometryConverter geometryConverter;
   private final GeometryTiledValidator geometryTiledValidator;
 
-  public void accept(Detection detection, Feature feature, String layer, Boolean isSynchronous) {
+  public void accept(Detection detection, Feature feature, Boolean isSynchronous) {
     var geometry = Objects.requireNonNull(feature.getGeometry()).getActualInstance();
     if (geometryTiledValidator.apply(geometry).equals(false)) {
       log.info("Provided feature geometry too large to request image: {} ", geometry);
@@ -36,7 +36,7 @@ public class PointExtendedImageRequest {
     var defaultZoomLevel = HOUSES_0.getZoomLevel();
 
     var tileExtendedImageRequested =
-        new TileExtendedImageRequested(longitude, latitude, defaultZoomLevel, layer, detection);
+        new TileExtendedImageRequested(longitude, latitude, defaultZoomLevel, detection.getId());
     if (isSynchronous) {
       tileExtendedImageRequestedService.accept(tileExtendedImageRequested);
     } else {

@@ -7,8 +7,10 @@ import java.math.BigDecimal;
 import java.util.List;
 import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
+import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 
+@Disabled("TODO: UnknownHostException from https://rnb-api.beta.gouv.fr in GitHub CI")
 @Slf4j
 class BuildingApiIT {
   BuildingApi subject = new BuildingApi();
