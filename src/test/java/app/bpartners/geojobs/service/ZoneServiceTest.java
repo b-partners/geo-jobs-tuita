@@ -38,6 +38,7 @@ import app.bpartners.geojobs.endpoint.rest.security.model.Authority;
 import app.bpartners.geojobs.endpoint.rest.security.model.Principal;
 import app.bpartners.geojobs.endpoint.rest.validator.FeatureTypeChecker;
 import app.bpartners.geojobs.endpoint.rest.validator.ZoneDetectionJobValidator;
+import app.bpartners.geojobs.file.FileWriter;
 import app.bpartners.geojobs.file.bucket.BucketComponent;
 import app.bpartners.geojobs.file.hash.FileHash;
 import app.bpartners.geojobs.job.model.JobStatus;
@@ -64,6 +65,7 @@ import app.bpartners.geojobs.utils.detection.DetectionCreator;
 import app.bpartners.geojobs.utils.detection.ZoneDetectionJobCreator;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.io.File;
+import java.io.IOException;
 import java.math.BigDecimal;
 import java.time.Duration;
 import java.time.Instant;
@@ -76,6 +78,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.locationtech.jts.geom.MultiPolygon;
 import org.mockito.ArgumentCaptor;
+import org.springframework.web.multipart.MultipartFile;
 
 class ZoneServiceTest {
   private static final String FEATURE_FILE_NAME_OK =
@@ -174,6 +177,8 @@ class ZoneServiceTest {
   DetectionStepRepository detectionStepRepositoryMock = mock();
   DetectionFromStepMapper detectionFromStepMapperMock = mock();
   RoofAnalysisMailer roofAnalysisMailerMock = mock(RoofAnalysisMailer.class);
+  FileWriter fileWriterMock = mock();
+
   ZoneService subject =
       new ZoneService(
           zoneDetectionJobServiceMock,
@@ -207,7 +212,8 @@ class ZoneServiceTest {
               areaPictureApiMock,
               geoServerConfiguration,
               tileMultiPolygonFrameMock,
-              geoJsonDelimitationTypeMapper));
+              geoJsonDelimitationTypeMapper),
+          fileWriterMock);
 
   @BeforeEach
   void setUp() {
@@ -1069,10 +1075,12 @@ class ZoneServiceTest {
   }
 
   @Test
-  void configure_geo_json_result() {
+  void configure_detection_file_result() throws IOException {
     var detectionId = randomUUID().toString();
     var communityOwnerId = randomUUID().toString();
-    var fileMock = mock(File.class);
+    var multiPartFileMock = mock(MultipartFile.class);
+    File fileMock = mock(File.class);
+    byte[] bytes = new byte[] {};
 
     var principalMock = mock(Principal.class);
     when(principalMock.getPassword()).thenReturn(randomUUID().toString());
@@ -1097,8 +1105,11 @@ class ZoneServiceTest {
                         .build()));
     when(detectionRepositoryMock.save(any()))
         .thenAnswer(invocationOnMock -> invocationOnMock.getArgument(0));
+    when(multiPartFileMock.getBytes()).thenReturn(bytes);
+    when(fileWriterMock.apply(bytes, null)).thenReturn(fileMock);
 
-    var actual = subject.configureGeoJsonResult(detectionId, fileMock);
+    var actual =
+        subject.configureFileResult(communityOwnerId, detectionId, multiPartFileMock, "geojson");
 
     var stringCaptor = ArgumentCaptor.forClass(String.class);
     var listCaptor = ArgumentCaptor.forClass(List.class);

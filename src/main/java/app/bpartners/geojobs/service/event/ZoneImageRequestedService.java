@@ -1,7 +1,11 @@
 package app.bpartners.geojobs.service.event;
 
+import static javax.imageio.ImageIO.read;
+
 import app.bpartners.geojobs.endpoint.event.model.ZoneImageRequested;
+import app.bpartners.geojobs.file.WhiteImageDetector;
 import app.bpartners.geojobs.file.bucket.BucketComponent;
+import app.bpartners.geojobs.model.exception.NotImplementedException;
 import app.bpartners.geojobs.repository.DetectionRepository;
 import app.bpartners.geojobs.repository.TilingTaskRepository;
 import app.bpartners.geojobs.repository.model.tiling.ParcelTilingTask;
@@ -28,6 +32,7 @@ public class ZoneImageRequestedService implements Consumer<ZoneImageRequested> {
   private final TilingTaskRepository tilingTaskRepository;
   private final GeometrySquareMeterArea geometrySquareMeterArea;
   private final TileImageBlur tileImageBlur;
+  private final WhiteImageDetector whiteImageDetector;
 
   @SneakyThrows
   @Override
@@ -66,6 +71,11 @@ public class ZoneImageRequestedService implements Consumer<ZoneImageRequested> {
     var tilesWithBlur = tileImageBlur.apply(detection, tilesWithImages);
 
     var assembleImageFile = tileImagesAssembler.apply(tilesWithBlur);
+
+    if (whiteImageDetector.apply(read(assembleImageFile))) {
+      throw new NotImplementedException(
+          "Address " + detection.getZoneName() + " not supported for now");
+    }
 
     bucketComponent.upload(assembleImageFile, "zone_images/" + detection.getId() + ".jpg");
   }

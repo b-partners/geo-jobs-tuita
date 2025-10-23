@@ -170,7 +170,7 @@ public class SecurityConf {
                     .requestMatchers(POST, "/detections/*/pdf")
                     .hasAnyAuthority(
                         ROLE_ADMIN.name(), ROLE_COMMUNITY.name(), ROLE_INSURANCE.name())
-                    .requestMatchers(POST, "/detections/*/geoJsonResult")
+                    .requestMatchers(POST, "/communities/*/detections/*/fileResult")
                     .hasAnyAuthority(ROLE_ADMIN.name())
                     .requestMatchers(GET, "/detections")
                     .hasAnyAuthority(

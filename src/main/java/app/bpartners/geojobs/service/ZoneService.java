@@ -10,6 +10,7 @@ import static app.bpartners.geojobs.model.exception.ApiException.ExceptionType.C
 import static app.bpartners.geojobs.repository.model.detection.ZoneDetectionJob.DetectionType.HUMAN;
 import static app.bpartners.geojobs.service.event.GeoJsonConversionTaskConsumer.GEO_JSON_BUCKET_FOLDER;
 import static app.bpartners.geojobs.service.event.GeoJsonConversionTaskConsumer.GEO_JSON_EXTENSION;
+import static app.bpartners.geojobs.service.event.GeoJsonConversionTaskConsumer.ZIP_BUCKET_FOLDER;
 import static java.time.Instant.now;
 import static java.time.Instant.parse;
 
@@ -25,6 +26,7 @@ import app.bpartners.geojobs.endpoint.rest.mapper.DetectionFromStepMapper;
 import app.bpartners.geojobs.endpoint.rest.mapper.DetectionStepMapper;
 import app.bpartners.geojobs.endpoint.rest.model.*;
 import app.bpartners.geojobs.endpoint.rest.security.AuthProvider;
+import app.bpartners.geojobs.file.FileWriter;
 import app.bpartners.geojobs.file.bucket.BucketComponent;
 import app.bpartners.geojobs.job.model.Job;
 import app.bpartners.geojobs.job.model.statistic.TaskStatistic;
@@ -47,6 +49,7 @@ import app.bpartners.geojobs.service.tiling.ZoneTilingJobService;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.io.File;
+import java.io.IOException;
 import java.nio.file.Files;
 import java.time.Instant;
 import java.util.*;
@@ -55,6 +58,7 @@ import lombok.AllArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
+import org.springframework.web.multipart.MultipartFile;
 
 @Service
 @AllArgsConstructor
@@ -87,6 +91,7 @@ public class ZoneService {
   private final DetectionFromStepMapper detectionFromStepMapper;
   private final RoofAnalysisMailer roofAnalysisMailer;
   private final DetectionCreationMapper detectionCreationMapper;
+  private final FileWriter fileWriter;
 
   private List<Feature> readFromFile(File featuresFromShape) {
     try {
@@ -189,21 +194,24 @@ public class ZoneService {
         savedDetection, FINISHED, SUCCEEDED, MACHINE_DETECTION);
   }
 
-  public app.bpartners.geojobs.endpoint.rest.model.Detection configureGeoJsonResult(
-      String detectionE2Id, File geoJsonFile) {
-    var detection = getDetectionByE2IdOrId(detectionE2Id);
-    var geoJsonResultFileKey =
-        GEO_JSON_BUCKET_FOLDER
-            + detection.getId()
-            + "/"
-            + detection.getZoneName()
-            + GEO_JSON_EXTENSION;
-
-    bucketComponent.upload(geoJsonFile, geoJsonResultFileKey);
+  public app.bpartners.geojobs.endpoint.rest.model.Detection configureFileResult(
+      String communityId, String detectionE2eId, MultipartFile file, String extensionType)
+      throws IOException {
+    if (communityId == null) {
+      throw new IllegalArgumentException("To sumbit result, communityAuthorizationId is mandatory");
+    }
+    var detection = getDetectionByE2eId(detectionE2eId, communityId);
+    String extension = "." + extensionType.toLowerCase();
+    var resultFileKey =
+        GEO_JSON_EXTENSION.contains(extension)
+            ? GEO_JSON_BUCKET_FOLDER
+            : ZIP_BUCKET_FOLDER + detection.getId() + "/" + detection.getZoneName() + extension;
+    byte[] fileBytes = file.getBytes();
+    File toUpload = fileWriter.apply(fileBytes, null);
+    bucketComponent.upload(toUpload, resultFileKey);
 
     var savedDetection =
-        detectionRepository.save(
-            detection.toBuilder().geojsonS3FileKey(geoJsonResultFileKey).build());
+        detectionRepository.save(detection.toBuilder().geojsonS3FileKey(resultFileKey).build());
 
     eventProducer.accept(List.of(DetectionSaved.builder().detection(savedDetection).build()));
     eventProducer.accept(List.of(new DetectionSucceeded(detection.getId())));
@@ -211,7 +219,7 @@ public class ZoneService {
     if (!savedDetection.isOnStepPostProcessingSucceeded()) {
       return updateDetectionStep(
           savedDetection.getEndToEndId(),
-          null,
+          communityId,
           new DetectionStep()
               .name(POST_PROCESSING)
               .status(

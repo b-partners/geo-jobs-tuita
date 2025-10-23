@@ -35,6 +35,7 @@ import org.springframework.stereotype.Component;
 public class GeoJsonConversionTaskConsumer implements TaskConsumer<GeoJsonConversionTask> {
   public static final String GEO_JSON_EXTENSION = ".geojson";
   public static final String GEO_JSON_BUCKET_FOLDER = "geoJson/";
+  public static final String ZIP_BUCKET_FOLDER = "zip/";
   public static final int NEIGHBOUR_SIZE = 41;
   private final MachineDetectedTileRepository machineDetectedTileRepository;
   private final HumanDetectedTileRepository humanDetectedTileRepository;

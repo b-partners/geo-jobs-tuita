@@ -38,12 +38,14 @@ import app.bpartners.geojobs.service.ZoneService;
 import app.bpartners.geojobs.service.detection.ZoneDetectionJobService;
 import app.bpartners.geojobs.service.geojson.GeoJsonConversionJobService;
 import java.io.File;
+import java.io.IOException;
 import java.time.Instant;
 import java.util.Collections;
 import java.util.List;
 import lombok.AllArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
 
 @RestController
 @AllArgsConstructor
@@ -207,11 +209,14 @@ public class ZoneDetectionController {
     return zoneService.configureExcelFile(detectionId, excelFile);
   }
 
-  @PostMapping("/detections/{id}/geoJsonResult")
-  public Detection configureDetectionGeoJsonResult(
-      @PathVariable(name = "id") String detectionId, @RequestBody byte[] geoJsonResult) {
-    File geojsonFile = fileWriter.apply(geoJsonResult, null);
-    return zoneService.configureGeoJsonResult(detectionId, geojsonFile);
+  @PostMapping("/communities/{communityId}/detections/{id}/fileResult")
+  public Detection configureDetectionFileResult(
+      @PathVariable(name = "communityId") String communityOwnerId,
+      @PathVariable(name = "id") String detectionId,
+      @RequestPart(value = "file") MultipartFile file,
+      @RequestPart(value = "extensionType") String extensionType)
+      throws IOException {
+    return zoneService.configureFileResult(communityOwnerId, detectionId, file, extensionType);
   }
 
   @PostMapping("/detections/{id}")

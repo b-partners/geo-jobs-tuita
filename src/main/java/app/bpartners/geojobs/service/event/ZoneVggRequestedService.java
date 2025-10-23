@@ -3,6 +3,8 @@ package app.bpartners.geojobs.service.event;
 import static app.bpartners.geojobs.endpoint.rest.controller.mapper.FeatureMapper.toRestFeature;
 import static app.bpartners.geojobs.service.geojson.GeometryConverter.getRoofMultiPolygon;
 
+import app.bpartners.geojobs.endpoint.event.EventProducer;
+import app.bpartners.geojobs.endpoint.event.model.GeoJsonConversionProcessSucceeded;
 import app.bpartners.geojobs.endpoint.event.model.ZoneVggRequested;
 import app.bpartners.geojobs.endpoint.rest.controller.mapper.FeatureMapper;
 import app.bpartners.geojobs.endpoint.rest.model.Feature;
@@ -43,6 +45,7 @@ public class ZoneVggRequestedService implements Consumer<ZoneVggRequested> {
   private final TileCoordinatesPolygonIntersection tileCoordinatesPolygonIntersection;
   private final FeatureMapper featureMapper;
   private final DetectionRoofPropertiesRequestedService detectionRoofPropertiesRequestedService;
+  private final EventProducer eventProducer;
 
   @Override
   public void accept(ZoneVggRequested event) {
@@ -72,7 +75,9 @@ public class ZoneVggRequestedService implements Consumer<ZoneVggRequested> {
 
     var newDetection = detectionVGGUpdate.apply(vggMap.values(), detectionWithRoofProperties);
 
-    detectionRepository.save(newDetection);
+    var savedDetection = detectionRepository.save(newDetection);
+
+    eventProducer.accept(List.of(new GeoJsonConversionProcessSucceeded(savedDetection)));
   }
 
   private List<TileCoordinates> retrieveTileCoordinates(Detection detection) {

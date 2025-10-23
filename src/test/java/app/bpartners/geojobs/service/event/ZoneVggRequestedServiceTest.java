@@ -7,10 +7,13 @@ import static app.bpartners.geojobs.model.geometry.GeometryFactory.geometryFacto
 import static app.bpartners.geojobs.repository.model.detection.DetectableType.MOISISSURE_COULEUR;
 import static java.util.UUID.randomUUID;
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.*;
 
+import app.bpartners.geojobs.endpoint.event.EventProducer;
+import app.bpartners.geojobs.endpoint.event.model.GeoJsonConversionProcessSucceeded;
 import app.bpartners.geojobs.endpoint.event.model.ZoneVggRequested;
 import app.bpartners.geojobs.endpoint.rest.controller.mapper.FeatureMapper;
 import app.bpartners.geojobs.endpoint.rest.model.TileCoordinates;
@@ -39,6 +42,7 @@ import org.jetbrains.annotations.NotNull;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.locationtech.jts.geom.*;
+import org.mockito.ArgumentCaptor;
 
 class ZoneVggRequestedServiceTest {
   DetectionRepository detectionRepositoryMock = mock();
@@ -51,6 +55,7 @@ class ZoneVggRequestedServiceTest {
   TileCoordinatesPolygonIntersection tileCoordinatesPolygonIntersectionMock = mock();
   FeatureMapper featureMapperMock = mock();
   DetectionRoofPropertiesRequestedService detectionRoofPropertiesRequestedServiceMock = mock();
+  EventProducer eventProducerMock = mock();
 
   ZoneVggRequestedService subject =
       new ZoneVggRequestedService(
@@ -63,7 +68,8 @@ class ZoneVggRequestedServiceTest {
           polygonCoordinatesCloser,
           tileCoordinatesPolygonIntersectionMock,
           featureMapperMock,
-          detectionRoofPropertiesRequestedServiceMock);
+          detectionRoofPropertiesRequestedServiceMock,
+          eventProducerMock);
 
   @BeforeEach
   void setUp() {
@@ -171,6 +177,12 @@ class ZoneVggRequestedServiceTest {
     assertDoesNotThrow(() -> subject.accept(new ZoneVggRequested(detectionIdentifier)));
 
     verify(detectionVGGUpdateMock, times(1)).apply(vggCollectionMock, detectionMock);
+    var listCaptor = ArgumentCaptor.forClass(List.class);
+    verify(eventProducerMock, times(1)).accept(listCaptor.capture());
+    var geoJsonConversionProcessSucceeded =
+        (GeoJsonConversionProcessSucceeded) listCaptor.getValue().getFirst();
+    assertEquals(
+        new GeoJsonConversionProcessSucceeded(detectionMock), geoJsonConversionProcessSucceeded);
     // TODO: add more assertions
   }
 
