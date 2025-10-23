@@ -29,7 +29,8 @@ Globals:
         AWS_EVENT_STACK_1_SQS_QUEUE_URL: !Sub '{{resolve:ssm:/geo-jobs-tuita/${Env}/1/sqs/mailbox-queue-url}}'
         AWS_EVENT_STACK_2_SQS_QUEUE_URL: !Sub '{{resolve:ssm:/geo-jobs-tuita/${Env}/2/sqs/mailbox-queue-url}}'
         AWS_EVENT_STACK_3_SQS_QUEUE_URL: !Sub '{{resolve:ssm:/geo-jobs-tuita/${Env}/3/sqs/mailbox-queue-url}}'
-        
+        AWS_EVENT_STACK_4_SQS_QUEUE_URL: !Sub '{{resolve:ssm:/geo-jobs-tuita/${Env}/4/sqs/mailbox-queue-url}}'
+
         SENTRY_DSN: !Sub '{{resolve:ssm:/geo-jobs-tuita/sentry/dsn}}'
         SENTRY_ENVIRONMENT: !Ref Env
         TILES_DOWNLOADER_API_URL: !Sub '{{resolve:ssm:/geo-jobs/${Env}/tiles/downloader/url}}'
@@ -50,14 +51,16 @@ Globals:
         README_WEBHOOK_SECRET: !Sub '{{resolve:ssm:/geo-jobs/${Env}/readme/webhook/secret}}'
         BPARTNERS_API_URL: !Sub '{{resolve:ssm:/geo-jobs/${Env}/bpartners/api/url}}'
         GEOSERVER_API_URL: !Sub '{{resolve:ssm:/geo-jobs/${Env}/geoserver/api/url}}'
-    
-        
+        IGN_LIDAR_API_URL: !Sub '{{resolve:ssm:/geo-jobs/${Env}/ign/lidar/api/url}}'
+        ROOF_COVERING_DETECTION_API_URL: !Sub '{{resolve:ssm:/geo-jobs/${Env}/covering/detection/api/url}}'
+
+
 Parameters:
   Env:
     Type: String
 
 Resources:
-  
+
   FrontalFunction:
     Type: AWS::Serverless::Function
     Properties:
@@ -65,11 +68,11 @@ Resources:
       MemorySize: 2048
       Timeout: 300
       Role: !Sub '{{resolve:ssm:/geo-jobs-tuita/${Env}/execution/role-arn}}'
-      
+
       FunctionUrlConfig:
         AuthType: NONE
         InvokeMode: BUFFERED
-        
+
 
   WorkerFunction1:
     Type: AWS::Serverless::Function
@@ -116,13 +119,28 @@ Resources:
             BatchSize: 1
       ReservedConcurrentExecutions: 10
 
+  WorkerFunction4:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: app.bpartners.geojobs.handler.MailboxEventHandler::handleRequest
+      MemorySize: 10240
+      Timeout: 900 #note(sqs-visibility)
+      Role: !Sub '{{resolve:ssm:/geo-jobs-tuita/${Env}/execution/role-arn}}'
+      Events:
+        AllEvents:
+          Type: SQS
+          Properties:
+            Queue: !Sub '{{resolve:ssm:/geo-jobs-tuita/${Env}/4/sqs/mailbox-queue-arn}}'
+            BatchSize: 1
+      ReservedConcurrentExecutions: 10
+
   ApiUrlSSM:
     Type: AWS::SSM::Parameter
     Properties:
       Name: !Join [ '', [ /geo-jobs-tuita/, !Ref Env, /api/url ] ]
       Type: String
       Value: !GetAtt FrontalFunctionUrl.FunctionUrl
-  
+
 Outputs:
   ApiUrl:
     Description: Url to access the frontal function
