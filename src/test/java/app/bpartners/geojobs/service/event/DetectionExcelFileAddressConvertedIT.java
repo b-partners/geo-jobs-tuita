@@ -2,7 +2,7 @@ package app.bpartners.geojobs.service.event;
 
 import static app.bpartners.geojobs.endpoint.rest.controller.mapper.FeatureMapper.toRestFeature;
 import static app.bpartners.geojobs.endpoint.rest.model.Geometry.TypeEnum.MULTI_POLYGON;
-import static app.bpartners.geojobs.repository.model.SurfaceUnit.SQUARE_DEGREE;
+import static app.bpartners.geojobs.repository.model.SurfaceUnit.SQUARE_METER;
 import static java.util.UUID.randomUUID;
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
@@ -156,7 +156,7 @@ class DetectionExcelFileAddressConvertedIT extends DetectionIT {
             .email("dummyCommunityEmail")
             .detectableObjectTypes(List.of())
             .maxSurface(0)
-            .maxSurfaceUnit(SQUARE_DEGREE)
+            .maxSurfaceUnit(SQUARE_METER)
             .authorizedZones(List.of())
             .build());
   }

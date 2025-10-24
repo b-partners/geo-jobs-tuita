@@ -1324,7 +1324,11 @@ components:
           type: string
     DetectionSurfaceUnit:
       type: string
+      x-enum-varnames:
+        - SQUARE_METER
+        - SQUARE_DEGREE
       enum:
+        - SQUARE_METER
         - SQUARE_DEGREE
     DetectionSurfaceValue:
       type: object

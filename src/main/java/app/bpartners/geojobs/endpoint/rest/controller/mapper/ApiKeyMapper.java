@@ -1,6 +1,6 @@
 package app.bpartners.geojobs.endpoint.rest.controller.mapper;
 
-import static app.bpartners.geojobs.repository.model.SurfaceUnit.SQUARE_DEGREE;
+import static app.bpartners.geojobs.repository.model.SurfaceUnit.SQUARE_METER;
 import static java.util.UUID.randomUUID;
 
 import app.bpartners.geojobs.endpoint.rest.model.CreateApiKey;
@@ -47,7 +47,7 @@ public class ApiKeyMapper {
         .detectableObjectTypes(null) // deprecated
         .detectableModels(getDetectableModels(createApiKey))
         .maxSurface(maxSurface == null ? 0 : maxSurface.doubleValue())
-        .maxSurfaceUnit(SQUARE_DEGREE)
+        .maxSurfaceUnit(SQUARE_METER)
         .role(toDomain(createApiKey.getConsumerType()))
         .authorizedZones(toCommunityAuthorizedZone(createApiKey, newCommunityId))
         .build();

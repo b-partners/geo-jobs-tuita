@@ -1,6 +1,6 @@
 package app.bpartners.geojobs.endpoint.rest.readme.monitor;
 
-import static app.bpartners.geojobs.endpoint.rest.model.DetectionSurfaceUnit.SQUARE_DEGREE;
+import static app.bpartners.geojobs.endpoint.rest.model.DetectionSurfaceUnit.SQUARE_METER;
 import static app.bpartners.geojobs.endpoint.rest.security.authenticator.ApiKeyAuthenticator.API_KEY_HEADER;
 import static app.bpartners.geojobs.endpoint.rest.security.model.Authority.Role.ROLE_COMMUNITY;
 import static org.junit.jupiter.api.Assertions.*;
@@ -59,7 +59,7 @@ class ReadmeMonitorFilterIT extends FacadeIT {
   @Test
   void can_save_log_with_request_ok() throws ApiException {
     when(communityUsedSurfaceServiceMock.getUsage(any(), any())).thenReturn(expectedDetectionUsage);
-    var actual = usageApi.getDetectionUsage(SQUARE_DEGREE);
+    var actual = usageApi.getDetectionUsage(SQUARE_METER);
 
     assertEquals(expectedDetectionUsage, actual);
     verify(eventProducerMock, times(1)).accept(any());
@@ -70,7 +70,7 @@ class ReadmeMonitorFilterIT extends FacadeIT {
     when(communityUsedSurfaceServiceMock.getUsage(any(), any()))
         .thenThrow(BadRequestException.class);
 
-    var error = assertThrows(ApiException.class, () -> usageApi.getDetectionUsage(SQUARE_DEGREE));
+    var error = assertThrows(ApiException.class, () -> usageApi.getDetectionUsage(SQUARE_METER));
     assertTrue(error.getMessage().contains("400 BAD_REQUEST"));
     verify(eventProducerMock, times(1)).accept(any());
   }

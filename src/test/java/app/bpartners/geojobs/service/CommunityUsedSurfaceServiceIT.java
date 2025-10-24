@@ -1,7 +1,7 @@
 package app.bpartners.geojobs.service;
 
 import static app.bpartners.geojobs.endpoint.rest.security.model.Authority.Role.ROLE_COMMUNITY;
-import static app.bpartners.geojobs.repository.model.SurfaceUnit.SQUARE_DEGREE;
+import static app.bpartners.geojobs.repository.model.SurfaceUnit.SQUARE_METER;
 import static java.time.Instant.now;
 import static java.util.UUID.randomUUID;
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -46,7 +46,7 @@ class CommunityUsedSurfaceServiceIT extends FacadeIT {
   @Autowired CommunityUsedSurfaceRepository communityUsedSurfaceRepository;
   @Autowired CommunityUsedSurfaceService subject;
   @Autowired DetectionRepository detectionRepository;
-  @MockBean FeatureSurfaceService featureSurfaceServiceMock;
+  @MockBean DetectionAreaComputer detectionAreaComputerMock;
 
   @BeforeEach
   void setup() {
@@ -65,7 +65,7 @@ class CommunityUsedSurfaceServiceIT extends FacadeIT {
     return CommunityAuthorization.builder()
         .id(COMMUNITY_ID)
         .maxSurface(5_000)
-        .maxSurfaceUnit(SQUARE_DEGREE)
+        .maxSurfaceUnit(SQUARE_METER)
         .apiKey(COMMUNITY_APIKEY)
         .name("communityName")
         .authorizedZones(List.of(communityAuthorizedZone()))
@@ -79,7 +79,7 @@ class CommunityUsedSurfaceServiceIT extends FacadeIT {
         .id("id")
         .communityAuthorizationId(COMMUNITY_ID)
         .usedSurface(value)
-        .unit(SQUARE_DEGREE)
+        .unit(SQUARE_METER)
         .usageDatetime(usageDatetime)
         .build();
   }
@@ -89,11 +89,11 @@ class CommunityUsedSurfaceServiceIT extends FacadeIT {
     var expectedUsedSurface = communityUsedSurface(LAST_SURFACE_VALUE, DUMMY_DATE);
 
     var actualUsedSurface =
-        subject.getTotalUsedSurfaceByCommunityId(COMMUNITY_ID, SQUARE_DEGREE).orElseThrow();
+        subject.getTotalUsedSurfaceByCommunityId(COMMUNITY_ID, SQUARE_METER).orElseThrow();
 
     assertEquals(formatUsedSurface(expectedUsedSurface), formatUsedSurface(actualUsedSurface));
     communityUsedSurfaceRepository.deleteAll();
-    assertTrue(subject.getTotalUsedSurfaceByCommunityId(COMMUNITY_ID, SQUARE_DEGREE).isEmpty());
+    assertTrue(subject.getTotalUsedSurfaceByCommunityId(COMMUNITY_ID, SQUARE_METER).isEmpty());
   }
 
   @Test
@@ -102,7 +102,7 @@ class CommunityUsedSurfaceServiceIT extends FacadeIT {
 
     subject.appendLastUsedSurface(communityUsedSurface(20, now()));
     var actualLastUsedSurface =
-        subject.getTotalUsedSurfaceByCommunityId(COMMUNITY_ID, SQUARE_DEGREE).orElseThrow();
+        subject.getTotalUsedSurfaceByCommunityId(COMMUNITY_ID, SQUARE_METER).orElseThrow();
 
     assertEquals(formatUsedSurface(exceptedUsedSurface), formatUsedSurface(actualLastUsedSurface));
   }
@@ -114,7 +114,7 @@ class CommunityUsedSurfaceServiceIT extends FacadeIT {
 
     subject.appendLastUsedSurface(communityUsedSurface(15, now()));
     var actualUsedSurface =
-        subject.getTotalUsedSurfaceByCommunityId(COMMUNITY_ID, SQUARE_DEGREE).orElseThrow();
+        subject.getTotalUsedSurfaceByCommunityId(COMMUNITY_ID, SQUARE_METER).orElseThrow();
 
     assertEquals(formatUsedSurface(exceptedUsedSurface), formatUsedSurface(actualUsedSurface));
   }
@@ -126,15 +126,15 @@ class CommunityUsedSurfaceServiceIT extends FacadeIT {
     var principal = new Principal(COMMUNITY_APIKEY, Set.of(new Authority(ROLE_COMMUNITY)));
     var expected =
         new DetectionUsage()
-            .totalUsedSurface(surfaceValueMapper.toSurfaceValue(LAST_SURFACE_VALUE, SQUARE_DEGREE))
+            .totalUsedSurface(surfaceValueMapper.toSurfaceValue(LAST_SURFACE_VALUE, SQUARE_METER))
             .remainingSurface(
-                surfaceValueMapper.toSurfaceValue(expectedRemainingSurfaceValue, SQUARE_DEGREE))
+                surfaceValueMapper.toSurfaceValue(expectedRemainingSurfaceValue, SQUARE_METER))
             .maxAuthorizedSurface(
                 surfaceValueMapper.toSurfaceValue(
-                    communityAuthorization().getMaxSurface(), SQUARE_DEGREE))
+                    communityAuthorization().getMaxSurface(), SQUARE_METER))
             .lastDatetimeSurfaceUsage(DUMMY_DATE);
 
-    var actual = subject.getUsage(principal, SQUARE_DEGREE);
+    var actual = subject.getUsage(principal, SQUARE_METER);
 
     assertEquals(expected, actual);
   }
@@ -149,13 +149,13 @@ class CommunityUsedSurfaceServiceIT extends FacadeIT {
             .endToEndId(endToEndId)
             .communityOwnerId(COMMUNITY_ID)
             .build();
-    when(featureSurfaceServiceMock.getAreaValue(any(List.class))).thenReturn(LAST_SURFACE_VALUE);
+    when(detectionAreaComputerMock.apply(any(List.class))).thenReturn(LAST_SURFACE_VALUE);
 
     subject.persistDetectionWithSurfaceUsage(detection, List.of(mock(Feature.class)));
     var expectedSurfaceValue = LAST_SURFACE_VALUE + LAST_SURFACE_VALUE;
 
     var actualUsedSurface =
-        subject.getTotalUsedSurfaceByCommunityId(COMMUNITY_ID, SQUARE_DEGREE).orElseThrow();
+        subject.getTotalUsedSurfaceByCommunityId(COMMUNITY_ID, SQUARE_METER).orElseThrow();
     var actualDetection =
         detectionRepository
             .findByEndToEndIdAndCommunityOwnerId(endToEndId, COMMUNITY_ID)

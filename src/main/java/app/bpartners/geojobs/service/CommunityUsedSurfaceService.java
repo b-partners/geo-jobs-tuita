@@ -1,6 +1,7 @@
 package app.bpartners.geojobs.service;
 
-import static app.bpartners.geojobs.repository.model.SurfaceUnit.SQUARE_DEGREE;
+import static app.bpartners.geojobs.endpoint.rest.security.model.Authority.Role.ROLE_INSURANCE;
+import static app.bpartners.geojobs.repository.model.SurfaceUnit.SQUARE_METER;
 import static java.time.Instant.now;
 import static java.util.UUID.randomUUID;
 
@@ -9,7 +10,6 @@ import app.bpartners.geojobs.endpoint.rest.model.DetectionUsage;
 import app.bpartners.geojobs.endpoint.rest.model.Feature;
 import app.bpartners.geojobs.endpoint.rest.security.model.Principal;
 import app.bpartners.geojobs.model.exception.ForbiddenException;
-import app.bpartners.geojobs.model.exception.NotImplementedException;
 import app.bpartners.geojobs.repository.CommunityAuthorizationRepository;
 import app.bpartners.geojobs.repository.CommunityUsedSurfaceRepository;
 import app.bpartners.geojobs.repository.DetectionRepository;
@@ -29,9 +29,9 @@ public class CommunityUsedSurfaceService {
   private final CommunityUsedSurfaceRepository communityUsedSurfaceRepository;
   private final CommunityAuthorizationRepository communityAuthRepository;
   private final DetectionSurfaceValueMapper surfaceValueMapper;
-  private final FeatureSurfaceService featureSurfaceService;
   private final DetectionRepository detectionRepository;
   private static final double DEFAULT_USED_SURFACE_VALUE = 0.0;
+  private final DetectionAreaComputer detectionAreaComputer;
 
   public Optional<CommunityUsedSurface> getTotalUsedSurfaceByCommunityId(
       String communityId, SurfaceUnit unit) {
@@ -88,9 +88,14 @@ public class CommunityUsedSurfaceService {
     return new DetectionUsage()
         .totalUsedSurface(
             surfaceValueMapper.toSurfaceValue(totalUsedSurface.getUsedSurface(), unit))
-        .remainingSurface(surfaceValueMapper.toSurfaceValue(remainingSurface, unit))
+        .remainingSurface(
+            ROLE_INSURANCE.equals(communityAuthorization.getRole())
+                ? null
+                : surfaceValueMapper.toSurfaceValue(remainingSurface, unit))
         .maxAuthorizedSurface(
-            surfaceValueMapper.toSurfaceValue(maxAuthorizedSurface.getUsedSurface(), unit))
+            ROLE_INSURANCE.equals(communityAuthorization.getRole())
+                ? null
+                : surfaceValueMapper.toSurfaceValue(maxAuthorizedSurface.getUsedSurface(), unit))
         .lastDatetimeSurfaceUsage(totalUsedSurface.getUsageDatetime());
   }
 
@@ -99,7 +104,8 @@ public class CommunityUsedSurfaceService {
     if (communityUsedSurface.getUnit().equals(unit)) {
       return communityUsedSurface;
     }
-    throw new NotImplementedException("Conversion of surface units is not supported yet");
+    // TODO : convert SQUARE_DEGREE to SQUARE_METER
+    return communityUsedSurface;
   }
 
   @Transactional
@@ -107,8 +113,8 @@ public class CommunityUsedSurfaceService {
     if (detection.getCommunityOwnerId() != null) {
       var newSurfaceUsage =
           CommunityUsedSurface.builder()
-              .unit(SQUARE_DEGREE)
-              .usedSurface(featureSurfaceService.getAreaValue(features))
+              .unit(SQUARE_METER)
+              .usedSurface(detectionAreaComputer.apply(features))
               .communityAuthorizationId(detection.getCommunityOwnerId())
               .build();
       appendLastUsedSurface(newSurfaceUsage);

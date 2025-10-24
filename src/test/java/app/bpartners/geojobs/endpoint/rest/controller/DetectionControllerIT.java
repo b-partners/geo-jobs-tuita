@@ -12,7 +12,7 @@ import static app.bpartners.geojobs.job.model.Status.ProgressionStatus.FINISHED;
 import static app.bpartners.geojobs.job.model.Status.ProgressionStatus.PENDING;
 import static app.bpartners.geojobs.repository.model.GeoJobType.DETECTION;
 import static app.bpartners.geojobs.repository.model.GeoJobType.TILING;
-import static app.bpartners.geojobs.repository.model.SurfaceUnit.SQUARE_DEGREE;
+import static app.bpartners.geojobs.repository.model.SurfaceUnit.SQUARE_METER;
 import static app.bpartners.geojobs.repository.model.detection.ZoneDetectionJob.DetectionType.MACHINE;
 import static java.time.Instant.now;
 import static java.util.UUID.randomUUID;
@@ -362,7 +362,7 @@ class DetectionControllerIT extends FacadeIT {
                 .id(communityOwnerId)
                 .name("dummy")
                 .apiKey("dummy")
-                .maxSurfaceUnit(SQUARE_DEGREE)
+                .maxSurfaceUnit(SQUARE_METER)
                 .maxSurface(10)
                 .build());
     var e2Id = randomUUID().toString();
@@ -408,7 +408,7 @@ class DetectionControllerIT extends FacadeIT {
                 .id(communityOwnerId)
                 .name("dummy")
                 .apiKey("dummy")
-                .maxSurfaceUnit(SQUARE_DEGREE)
+                .maxSurfaceUnit(SQUARE_METER)
                 .maxSurface(10)
                 .build());
     var e2Id = randomUUID().toString();
@@ -460,7 +460,7 @@ class DetectionControllerIT extends FacadeIT {
                 .id(communityOwnerId)
                 .name("dummy")
                 .apiKey("dummy")
-                .maxSurfaceUnit(SQUARE_DEGREE)
+                .maxSurfaceUnit(SQUARE_METER)
                 .maxSurface(10)
                 .build());
     var endToEndDetectionId = randomUUID().toString();

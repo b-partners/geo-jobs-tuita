@@ -3,7 +3,7 @@ package app.bpartners.geojobs.endpoint.rest.mapper;
 import static app.bpartners.geojobs.endpoint.rest.model.CreateApiKey.ConsumerTypeEnum.INSURANCE;
 import static app.bpartners.geojobs.endpoint.rest.model.ModelName.TOITURE;
 import static app.bpartners.geojobs.endpoint.rest.security.model.Authority.Role.ROLE_INSURANCE;
-import static app.bpartners.geojobs.repository.model.SurfaceUnit.SQUARE_DEGREE;
+import static app.bpartners.geojobs.repository.model.SurfaceUnit.SQUARE_METER;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.doNothing;
@@ -51,7 +51,7 @@ class ApiKeyMapperTest {
             .apiKey(actual.getFirst().getApiKey())
             .name("consumerName")
             .email("consumer@email.com")
-            .maxSurfaceUnit(SQUARE_DEGREE)
+            .maxSurfaceUnit(SQUARE_METER)
             .authorizedZones(
                 List.of(
                     CommunityAuthorizedZone.builder()
@@ -94,7 +94,7 @@ class ApiKeyMapperTest {
             .apiKey(actual.getFirst().getApiKey())
             .name("consumerName")
             .email("consumer@email.com")
-            .maxSurfaceUnit(SQUARE_DEGREE)
+            .maxSurfaceUnit(SQUARE_METER)
             .authorizedZones(
                 List.of(
                     CommunityAuthorizedZone.builder()

@@ -2,12 +2,10 @@ package app.bpartners.geojobs.service;
 
 import static app.bpartners.geojobs.endpoint.rest.model.Feature.TypeEnum.FEATURE;
 import static app.bpartners.geojobs.endpoint.rest.model.ModelName.TOITURE;
-import static app.bpartners.geojobs.endpoint.rest.model.ModelName.VOIRIE_TROTTOIRS;
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.*;
 
 import app.bpartners.geojobs.endpoint.rest.model.*;
-import app.bpartners.geojobs.model.exception.NotImplementedException;
 import java.math.BigDecimal;
 import java.util.HashMap;
 import java.util.List;
@@ -16,23 +14,6 @@ import org.junit.jupiter.api.Test;
 class SynchronousDetectionValidatorTest {
 
   SynchronousDetectionValidator subject = new SynchronousDetectionValidator();
-
-  @Test
-  void accept_throwsNotImplementedException_whenModelNameIsNotToiture() {
-    var createDetectionMock = mock(CreateDetection.class);
-    var detectableObjectModelMock = mock(DetectableObjectModel.class);
-    when(createDetectionMock.getDetectableObjectModel()).thenReturn(detectableObjectModelMock);
-    when(detectableObjectModelMock.getModelName()).thenReturn(VOIRIE_TROTTOIRS);
-    NotImplementedException thrown =
-        assertThrows(NotImplementedException.class, () -> subject.apply(createDetectionMock));
-
-    assertTrue(
-        thrown.getMessage().contains("Only BP_TOITURE detection model is supported for now"));
-    assertTrue(thrown.getMessage().contains("otherwise, model provided is " + VOIRIE_TROTTOIRS));
-
-    verify(createDetectionMock, times(1)).getDetectableObjectModel();
-    verify(detectableObjectModelMock, times(1)).getModelName();
-  }
 
   @Test
   void return_fixed_multi_polygon_to_polygon_geo_json_when_unique_multi_polygon() {

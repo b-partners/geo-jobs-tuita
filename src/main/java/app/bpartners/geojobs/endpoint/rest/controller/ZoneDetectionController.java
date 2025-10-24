@@ -297,8 +297,7 @@ public class ZoneDetectionController {
 
   @GetMapping("/usage")
   public DetectionUsage getDetectionUsage(
-      @RequestParam(name = "surfaceUnit", required = false, defaultValue = "SQUARE_DEGREE")
-          DetectionSurfaceUnit surfaceUnit) {
+      @RequestParam(name = "surfaceUnit", required = false) DetectionSurfaceUnit surfaceUnit) {
     getUsageValidator.accept(authProvider.getPrincipal());
     return communityUsedSurfaceService.getUsage(
         authProvider.getPrincipal(), unitMapper.toDomain(surfaceUnit));

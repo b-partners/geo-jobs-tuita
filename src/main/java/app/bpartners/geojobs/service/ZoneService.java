@@ -433,12 +433,16 @@ public class ZoneService {
             detection -> {
               var restDetectionMapValue =
                   detection.toBuilder().id(detection.getEndToEndId()).build();
-              return addStatistics(restDetectionMapValue);
+              return addStepStatistics(restDetectionMapValue);
             })
         .toList();
   }
 
-  private app.bpartners.geojobs.endpoint.rest.model.Detection addStatistics(Detection detection) {
+  private app.bpartners.geojobs.endpoint.rest.model.Detection addStepStatistics(
+      Detection detection) {
+    if (detection.getStep() != null) {
+      return detectionFromStepMapper.apply(detection, detection.getStep());
+    }
     if (detection.getZdjId() != null) {
       return detectionFromStatisticRestMapper.apply(
           detection,

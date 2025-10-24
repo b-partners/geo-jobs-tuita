@@ -10,7 +10,7 @@ import org.springframework.stereotype.Component;
 public class DetectionSurfaceValueMapper {
   private final DetectionSurfaceUnitMapper unitMapper;
 
-  public DetectionSurfaceValue toSurfaceValue(double value, SurfaceUnit unit) {
+  public DetectionSurfaceValue toSurfaceValue(Double value, SurfaceUnit unit) {
     return new DetectionSurfaceValue().unit(unitMapper.toRest(unit)).value(value);
   }
 }

@@ -201,7 +201,7 @@ class ZoneDetectionControllerTest {
     when(communityUsedSurfaceServiceMock.getUsage(any(), any())).thenReturn(detectionUsageOk);
     doNothing().when(getUsageValidatorMock).accept(any());
 
-    var actual = subject.getDetectionUsage(DetectionSurfaceUnit.SQUARE_DEGREE);
+    var actual = subject.getDetectionUsage(DetectionSurfaceUnit.SQUARE_METER);
 
     assertEquals(detectionUsageOk, actual);
   }

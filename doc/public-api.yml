@@ -363,6 +363,7 @@ components:
       type: string
       enum:
         - SQUARE_DEGREE
+        - SQUARE_METER
     DetectionSurfaceValue:
       type: object
       required:

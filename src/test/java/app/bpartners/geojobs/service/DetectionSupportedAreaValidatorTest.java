@@ -29,7 +29,7 @@ class DetectionSupportedAreaValidatorTest {
 
   @SneakyThrows
   @Test
-  void do_not_throw_exception_when_area_under_one_kilometer_square_degree() {
+  void do_not_throw_exception_when_area_under_one_kilometer_square_meter() {
     assertDoesNotThrow(
         () ->
             subject.accept(
@@ -40,7 +40,7 @@ class DetectionSupportedAreaValidatorTest {
 
   @SneakyThrows
   @Test
-  void do_not_throw_exception_when_unified_area_under_one_kilometer_square_degree() {
+  void do_not_throw_exception_when_unified_area_under_one_kilometer_square_meter() {
     assertDoesNotThrow(
         () ->
             subject.accept(
@@ -53,7 +53,7 @@ class DetectionSupportedAreaValidatorTest {
   }
 
   @Test
-  void throw_unsupported_area_exception_when_area_over_one_kilometer_square_degree() {
+  void throw_unsupported_area_exception_when_area_over_one_kilometer_square_meter() {
     var actualUniqueFeatureException =
         assertThrows(
             UnsupportedDetectionAreaException.class,
@@ -98,7 +98,7 @@ class DetectionSupportedAreaValidatorTest {
   }
 
   @Test
-  void throw_unsupported_area_exception_when_accumulated_area_over_one_kilometer_square_degree() {
+  void throw_unsupported_area_exception_when_accumulated_area_over_one_kilometer_square_meter() {
     var actualUniqueFeatureException =
         assertThrows(
             UnsupportedDetectionAreaException.class,
