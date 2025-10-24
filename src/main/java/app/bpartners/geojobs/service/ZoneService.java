@@ -17,9 +17,9 @@ import static java.time.Instant.parse;
 import app.bpartners.geojobs.endpoint.event.EventProducer;
 import app.bpartners.geojobs.endpoint.event.model.DetectionExcelFileSaved;
 import app.bpartners.geojobs.endpoint.event.model.DetectionSaved;
-import app.bpartners.geojobs.endpoint.event.model.DetectionSucceeded;
 import app.bpartners.geojobs.endpoint.event.model.DetectionTilingRequested;
 import app.bpartners.geojobs.endpoint.event.model.annotation.AnnotationJobVerificationSent;
+import app.bpartners.geojobs.endpoint.event.model.zone.DetectionQualityControlFinished;
 import app.bpartners.geojobs.endpoint.rest.controller.mapper.FeatureMapper;
 import app.bpartners.geojobs.endpoint.rest.mapper.DetectionFromStatisticRestMapper;
 import app.bpartners.geojobs.endpoint.rest.mapper.DetectionFromStepMapper;
@@ -30,6 +30,7 @@ import app.bpartners.geojobs.file.FileWriter;
 import app.bpartners.geojobs.file.bucket.BucketComponent;
 import app.bpartners.geojobs.job.model.Job;
 import app.bpartners.geojobs.job.model.statistic.TaskStatistic;
+import app.bpartners.geojobs.mail.Mailer;
 import app.bpartners.geojobs.model.exception.ApiException;
 import app.bpartners.geojobs.model.exception.BadRequestException;
 import app.bpartners.geojobs.model.exception.NotFoundException;
@@ -46,6 +47,7 @@ import app.bpartners.geojobs.service.detection.*;
 import app.bpartners.geojobs.service.detection.DetectionCreationMapper;
 import app.bpartners.geojobs.service.geojson.GeoJsonConversionJobService;
 import app.bpartners.geojobs.service.tiling.ZoneTilingJobService;
+import app.bpartners.geojobs.template.HTMLTemplateParser;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.io.File;
@@ -92,6 +94,8 @@ public class ZoneService {
   private final RoofAnalysisMailer roofAnalysisMailer;
   private final DetectionCreationMapper detectionCreationMapper;
   private final FileWriter fileWriter;
+  private final Mailer mailer;
+  private final HTMLTemplateParser htmlTemplateParser;
 
   private List<Feature> readFromFile(File featuresFromShape) {
     try {
@@ -204,7 +208,7 @@ public class ZoneService {
     String extension = "." + extensionType.toLowerCase();
     var resultFileKey =
         GEO_JSON_EXTENSION.contains(extension)
-            ? GEO_JSON_BUCKET_FOLDER
+            ? GEO_JSON_BUCKET_FOLDER + detection.getId() + "/" + detection.getZoneName() + extension
             : ZIP_BUCKET_FOLDER + detection.getId() + "/" + detection.getZoneName() + extension;
     byte[] fileBytes = file.getBytes();
     File toUpload = fileWriter.apply(fileBytes, null);
@@ -214,7 +218,8 @@ public class ZoneService {
         detectionRepository.save(detection.toBuilder().geojsonS3FileKey(resultFileKey).build());
 
     eventProducer.accept(List.of(DetectionSaved.builder().detection(savedDetection).build()));
-    eventProducer.accept(List.of(new DetectionSucceeded(detection.getId())));
+    eventProducer.accept(
+        List.of(DetectionQualityControlFinished.builder().detection(savedDetection).build()));
 
     if (!savedDetection.isOnStepPostProcessingSucceeded()) {
       return updateDetectionStep(
@@ -230,6 +235,7 @@ public class ZoneService {
               .statistics(List.of())
               .updatedAt(now()));
     }
+
     return detectionFromStatisticRestMapper.computeEmptyStatisticFromStep(
         detection, FINISHED, SUCCEEDED, POST_PROCESSING);
   }

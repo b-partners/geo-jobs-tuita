@@ -25,9 +25,9 @@ import static org.mockito.Mockito.*;
 import app.bpartners.geojobs.endpoint.event.EventProducer;
 import app.bpartners.geojobs.endpoint.event.model.DetectionExcelFileSaved;
 import app.bpartners.geojobs.endpoint.event.model.DetectionSaved;
-import app.bpartners.geojobs.endpoint.event.model.DetectionSucceeded;
 import app.bpartners.geojobs.endpoint.event.model.DetectionTilingRequested;
 import app.bpartners.geojobs.endpoint.event.model.annotation.AnnotationJobVerificationSent;
+import app.bpartners.geojobs.endpoint.event.model.zone.DetectionQualityControlFinished;
 import app.bpartners.geojobs.endpoint.rest.controller.mapper.*;
 import app.bpartners.geojobs.endpoint.rest.mapper.DetectionFromStatisticRestMapper;
 import app.bpartners.geojobs.endpoint.rest.mapper.DetectionFromStepMapper;
@@ -43,6 +43,7 @@ import app.bpartners.geojobs.file.bucket.BucketComponent;
 import app.bpartners.geojobs.file.hash.FileHash;
 import app.bpartners.geojobs.job.model.JobStatus;
 import app.bpartners.geojobs.job.model.statistic.TaskStatistic;
+import app.bpartners.geojobs.mail.Mailer;
 import app.bpartners.geojobs.model.exception.ApiException;
 import app.bpartners.geojobs.model.exception.BadRequestException;
 import app.bpartners.geojobs.repository.*;
@@ -59,6 +60,7 @@ import app.bpartners.geojobs.service.geojson.GeoJsonConversionJobService;
 import app.bpartners.geojobs.service.geojson.GeometryConverter;
 import app.bpartners.geojobs.service.geoserver.GeoServerConfiguration;
 import app.bpartners.geojobs.service.tiling.ZoneTilingJobService;
+import app.bpartners.geojobs.template.HTMLTemplateParser;
 import app.bpartners.geojobs.utils.FeatureCreator;
 import app.bpartners.geojobs.utils.TaskStatisticCreator;
 import app.bpartners.geojobs.utils.detection.DetectionCreator;
@@ -74,12 +76,14 @@ import java.util.List;
 import java.util.Optional;
 import java.util.Set;
 import lombok.SneakyThrows;
+import lombok.extern.slf4j.Slf4j;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.locationtech.jts.geom.MultiPolygon;
 import org.mockito.ArgumentCaptor;
 import org.springframework.web.multipart.MultipartFile;
 
+@Slf4j
 class ZoneServiceTest {
   private static final String FEATURE_FILE_NAME_OK =
       "src"
@@ -178,6 +182,8 @@ class ZoneServiceTest {
   DetectionFromStepMapper detectionFromStepMapperMock = mock();
   RoofAnalysisMailer roofAnalysisMailerMock = mock(RoofAnalysisMailer.class);
   FileWriter fileWriterMock = mock();
+  Mailer mailerMock = mock();
+  HTMLTemplateParser htmlTemplateParserMock = mock();
 
   ZoneService subject =
       new ZoneService(
@@ -213,7 +219,9 @@ class ZoneServiceTest {
               geoServerConfiguration,
               tileMultiPolygonFrameMock,
               geoJsonDelimitationTypeMapper),
-          fileWriterMock);
+          fileWriterMock,
+          mailerMock,
+          htmlTemplateParserMock);
 
   @BeforeEach
   void setUp() {
@@ -1085,29 +1093,26 @@ class ZoneServiceTest {
     var principalMock = mock(Principal.class);
     when(principalMock.getPassword()).thenReturn(randomUUID().toString());
     when(authProviderMock.getPrincipal()).thenReturn(principalMock);
+    var detection =
+        new app.bpartners.geojobs.repository.model.detection.Detection()
+            .toBuilder()
+                .id(detectionId)
+                .emailReceiver("random@gmail.com")
+                .endToEndId(communityOwnerId)
+                .detectionSteps(
+                    List.of(
+                        app.bpartners.geojobs.repository.model.detection.DetectionStep.builder()
+                            .name(POST_PROCESSING)
+                            .progression(FINISHED)
+                            .health(app.bpartners.geojobs.job.model.Status.HealthStatus.SUCCEEDED)
+                            .build()))
+                .build();
     when(detectionRepositoryMock.findByEndToEndIdAndCommunityOwnerId(any(), any()))
-        .thenReturn(
-            Optional.of(
-                new app.bpartners.geojobs.repository.model.detection.Detection()
-                    .toBuilder()
-                        .id(detectionId)
-                        .endToEndId(communityOwnerId)
-                        .detectionSteps(
-                            List.of(
-                                app.bpartners.geojobs.repository.model.detection.DetectionStep
-                                    .builder()
-                                    .name(POST_PROCESSING)
-                                    .progression(FINISHED)
-                                    .health(
-                                        app.bpartners.geojobs.job.model.Status.HealthStatus
-                                            .SUCCEEDED)
-                                    .build()))
-                        .build()));
+        .thenReturn(Optional.of(detection));
     when(detectionRepositoryMock.save(any()))
         .thenAnswer(invocationOnMock -> invocationOnMock.getArgument(0));
     when(multiPartFileMock.getBytes()).thenReturn(bytes);
     when(fileWriterMock.apply(bytes, null)).thenReturn(fileMock);
-
     var actual =
         subject.configureFileResult(communityOwnerId, detectionId, multiPartFileMock, "geojson");
 
@@ -1119,13 +1124,19 @@ class ZoneServiceTest {
     verify(bucketComponentMock, times(1)).upload(eq(fileMock), stringCaptor.capture());
     verify(detectionRepositoryMock).save(any());
     verify(eventProducerMock, times(2)).accept(listCaptor.capture());
-    var detectionSucceededEvent =
-        (DetectionSucceeded) listCaptor.getAllValues().getLast().getFirst();
-    assertEquals(new DetectionSucceeded(detectionId), detectionSucceededEvent);
-    assertEquals(EVENT_STACK_2, detectionSucceededEvent.getEventStack());
-    assertEquals(Duration.ofSeconds(30L), detectionSucceededEvent.maxConsumerDuration());
+    var detectionQualityControlFinished =
+        (DetectionQualityControlFinished)
+            listCaptor.getAllValues().stream()
+                .flatMap(List::stream)
+                .filter(DetectionQualityControlFinished.class::isInstance)
+                .findFirst()
+                .orElseThrow();
+    assertEquals(new DetectionQualityControlFinished(detection), detectionQualityControlFinished);
+    assertEquals(EVENT_STACK_2, detectionQualityControlFinished.getEventStack());
+    assertEquals(Duration.ofSeconds(30L), detectionQualityControlFinished.maxConsumerDuration());
     assertEquals(
-        Duration.ofSeconds(30L), detectionSucceededEvent.maxConsumerBackoffBetweenRetries());
+        Duration.ofSeconds(30L),
+        detectionQualityControlFinished.maxConsumerBackoffBetweenRetries());
     assertTrue(stringCaptor.getValue().contains(GEO_JSON_BUCKET_FOLDER));
   }
 

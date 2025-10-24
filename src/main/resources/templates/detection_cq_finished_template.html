@@ -1,0 +1,19 @@
+<html>
+<head>
+    <style>
+        body {
+            font-family: Helvetica, serif;
+        }
+    </style>
+</head>
+<body>
+<section>
+    <p>Bonjour,</p>
+    <p>Le résultat final de la détection sur la zone <strong th:text="${zoneName}"></strong> portant l'id = <strong
+            th:text="${detectionE2EId}"></strong> est disponible.</p>
+    <p>Vous pouvez le consulter <a th:href="${geojsonUrl}">ici</a></p>
+    <p>Cordialement.</p>
+    <p>L'équipe BirdIA.</p>
+</section>
+</body>
+</html>
