@@ -12,7 +12,7 @@ import org.springframework.stereotype.Service;
 @Service
 @RequiredArgsConstructor
 public class DetectionFinishedMailer implements TriConsumer<String, String, String> {
-  private static final String ADMIN_EMAIL = "tech@birdia.fr";
+  public static final String ADMIN_EMAIL = "tech@birdia.fr";
   private final Mailer mailer;
 
   @Override

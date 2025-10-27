@@ -1,11 +1,9 @@
 package app.bpartners.geojobs.endpoint.rest.controller.mapper;
 
-import static app.bpartners.geojobs.endpoint.rest.controller.mapper.FeatureMapper.toRestFeature;
 import static app.bpartners.geojobs.endpoint.rest.model.CreateZoneTilingJob.ZoomLevelEnum.fromValue;
 import static app.bpartners.geojobs.job.model.Status.HealthStatus.UNKNOWN;
 import static app.bpartners.geojobs.job.model.Status.ProgressionStatus.PENDING;
 import static app.bpartners.geojobs.repository.model.ArcgisImageZoom.HOUSES_0;
-import static app.bpartners.geojobs.service.geojson.GeometryConverter.unifyMultiPolygon;
 import static java.time.Instant.now;
 import static java.util.UUID.randomUUID;
 
@@ -22,8 +20,7 @@ import app.bpartners.geojobs.service.ParcelService;
 import app.bpartners.geojobs.service.TilePolygonRetriever;
 import app.bpartners.geojobs.service.geojson.GeometryConverter;
 import app.bpartners.geojobs.service.tiling.TileFinder;
-import java.math.BigDecimal;
-import java.util.HashMap;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
 import lombok.AllArgsConstructor;
@@ -137,13 +134,11 @@ public class ZoneTilingJobMapper {
 
   private List<Feature> getFinalGeoJsonZone(Detection detection) {
     var polygonGeoJsonZone = detection.getPolygonGeoJsonZone();
-    if (detection.needsImageOutput() && polygonGeoJsonZone != null) {
+    if (polygonGeoJsonZone != null) {
       var geometryInstance = polygonGeoJsonZone.getGeometry().getActualInstance();
       if (Objects.requireNonNull(geometryInstance) instanceof Polygon p) {
         var geometryPolygon = geometryConverter.convertToPolygon(p.getCoordinates().getFirst());
-        var splitTilePolygons = tilePolygonRetriever.apply(geometryPolygon);
-        var splitFeatures =
-            splitTilePolygons.stream().map(geometryConverter::toRestFeature).toList();
+        var splitFeatures = computeTileFeatureFromPolygon(geometryPolygon);
 
         // /!\ Be careful here, there may be a side effect
         detection.setSplitPolygonGeoJsonZone(
@@ -155,45 +150,38 @@ public class ZoneTilingJobMapper {
           "Unsupported geometry type to retrieve final geo json zone " + geometryInstance);
     }
 
-    var zoneToProcess = detectionProvidedZoneUnifier.applyMultiGeoJson(detection);
-    int zoomLevel = HOUSES_0.getZoomLevel();
-    var surroundingTileCoordinates =
-        tileFinder.getSurroundingTiles(
-            BigDecimal.valueOf(zoneToProcess.getCentroid().getCoordinate().x),
-            BigDecimal.valueOf(zoneToProcess.getCoordinate().y),
-            zoomLevel);
-    var tileMultiPolygonList =
-        surroundingTileCoordinates.stream()
-            .map(
-                coor ->
-                    geometryConverter.getMultiPolygonFromTile(
-                        coor.getX(), coor.getY(), coor.getZ()))
-            .toList();
-    var surroundingMultiPolygon =
-        tileMultiPolygonList.stream()
-            .reduce(unifyMultiPolygon())
-            .orElseThrow(
-                () ->
-                    new IllegalStateException(
-                        "Cannot unify multi polygon from tiles to process ZTJ"));
-
-    log.info(
-        "Surrounding multi polygon: {}",
-        geometryConverter.writeGeometryAsString(surroundingMultiPolygon));
-    log.info("Zone to process: {}", geometryConverter.writeGeometryAsString(zoneToProcess));
-    if (!zoneToProcess.contains(surroundingMultiPolygon)
-        && zoneToProcess.intersects(zoneToProcess)) {
-      return tileMultiPolygonList.stream()
-          .map(
-              multiPolygon ->
-                  toRestFeature(
-                      geometryConverter.toFeature(
-                          randomUUID().toString(),
-                          zoomLevel,
-                          new HashMap<String, Object>(),
-                          multiPolygon)))
-          .toList();
+    var zoneToProcess = detectionProvidedZoneUnifier.apply(detection);
+    var finalGeoJsonZone = new ArrayList<Feature>();
+    for (int i = 0; i < zoneToProcess.getNumGeometries(); i++) {
+      var geometry = zoneToProcess.getGeometryN(i);
+      if (geometry instanceof org.locationtech.jts.geom.MultiPolygon jtsMultiPolygon) {
+        for (int j = 0; j < jtsMultiPolygon.getNumGeometries(); j++) {
+          if (jtsMultiPolygon.getGeometryN(j)
+              instanceof org.locationtech.jts.geom.Polygon polygon) {
+            finalGeoJsonZone.addAll(computeTileFeatureFromPolygon(polygon));
+          } else {
+            log.info(
+                "Unable to retrieve tiles features for geometry type {}",
+                jtsMultiPolygon.getGeometryN(j).getGeometryType());
+          }
+        }
+      } else if (geometry instanceof org.locationtech.jts.geom.Polygon jtsPolygon) {
+        finalGeoJsonZone.addAll(computeTileFeatureFromPolygon(jtsPolygon));
+      } else {
+        log.info(
+            "Unable to retrieve tiles features for geometry type {}", geometry.getGeometryType());
+      }
     }
-    return detection.getMultiPolygonGeoJsonZone();
+
+    detection.setSplitPolygonGeoJsonZone(
+        finalGeoJsonZone.stream().map(FeatureMapper::toDomainFeature).toList());
+
+    return finalGeoJsonZone;
+  }
+
+  private List<Feature> computeTileFeatureFromPolygon(
+      org.locationtech.jts.geom.Polygon geometryPolygon) {
+    var splitTilePolygons = tilePolygonRetriever.apply(geometryPolygon);
+    return splitTilePolygons.stream().map(geometryConverter::toRestFeature).toList();
   }
 }
