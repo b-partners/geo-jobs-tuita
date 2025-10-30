@@ -470,4 +470,36 @@ public class GeometryConverter {
     my = my * originShift / 180.0;
     return List.of(BigDecimal.valueOf(mx), BigDecimal.valueOf(my));
   }
+
+  public Polygon retrievePolygonGeometry(
+      app.bpartners.geojobs.endpoint.rest.model.Feature feature) {
+    var geometryInstance = feature.getGeometry().getActualInstance();
+    switch (geometryInstance) {
+      case app.bpartners.geojobs.endpoint.rest.model.Point point -> {
+        var nearestRoofMultiPolygon = retrieveNearestRoofMultiPolygon(point);
+        if (nearestRoofMultiPolygon.getNumGeometries() > 1) {
+          log.error("Unable to handle multiple polygons for feature : {}", feature);
+          return null;
+        } else {
+          return (Polygon) nearestRoofMultiPolygon.getGeometryN(0);
+        }
+      }
+      case app.bpartners.geojobs.endpoint.rest.model.Polygon restPolygon -> {
+        return convertToPolygon(restPolygon.getCoordinates().getFirst());
+      }
+      case app.bpartners.geojobs.endpoint.rest.model.MultiPolygon restMultiPolygon -> {
+        var jtsMultiPolygon = apply(restMultiPolygon.getCoordinates());
+        if (jtsMultiPolygon.getNumGeometries() > 1) {
+          log.error("Unable to handle multiPolygons for feature : {}", feature);
+          return null;
+        } else {
+          return (Polygon) jtsMultiPolygon.getGeometryN(0);
+        }
+      }
+      default -> {
+        log.error("Unable to handle geometry type : {}", geometryInstance);
+        return null;
+      }
+    }
+  }
 }

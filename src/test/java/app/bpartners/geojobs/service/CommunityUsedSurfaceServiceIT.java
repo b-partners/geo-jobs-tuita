@@ -1,6 +1,8 @@
 package app.bpartners.geojobs.service;
 
 import static app.bpartners.geojobs.endpoint.rest.security.model.Authority.Role.ROLE_COMMUNITY;
+import static app.bpartners.geojobs.model.geometry.GeometryFactory.geometryFactory;
+import static app.bpartners.geojobs.repository.model.SurfaceUnit.SQUARE_DEGREE;
 import static app.bpartners.geojobs.repository.model.SurfaceUnit.SQUARE_METER;
 import static java.time.Instant.now;
 import static java.util.UUID.randomUUID;
@@ -20,6 +22,7 @@ import app.bpartners.geojobs.endpoint.rest.security.model.Principal;
 import app.bpartners.geojobs.repository.CommunityAuthorizationRepository;
 import app.bpartners.geojobs.repository.CommunityUsedSurfaceRepository;
 import app.bpartners.geojobs.repository.DetectionRepository;
+import app.bpartners.geojobs.repository.model.SurfaceUnit;
 import app.bpartners.geojobs.repository.model.community.CommunityAuthorization;
 import app.bpartners.geojobs.repository.model.community.CommunityAuthorizedZone;
 import app.bpartners.geojobs.repository.model.community.CommunityUsedSurface;
@@ -32,6 +35,8 @@ import java.util.Set;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.locationtech.jts.geom.Coordinate;
+import org.locationtech.jts.geom.Polygon;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.mock.mockito.MockBean;
 
@@ -47,11 +52,13 @@ class CommunityUsedSurfaceServiceIT extends FacadeIT {
   @Autowired CommunityUsedSurfaceService subject;
   @Autowired DetectionRepository detectionRepository;
   @MockBean DetectionAreaComputer detectionAreaComputerMock;
+  @Autowired GeometrySquareMeterArea squareMeterArea;
 
   @BeforeEach
   void setup() {
     communityAuthorizationRepository.save(communityAuthorization());
-    communityUsedSurfaceRepository.save(communityUsedSurface(LAST_SURFACE_VALUE, DUMMY_DATE));
+    communityUsedSurfaceRepository.save(
+        communityUsedSurface(LAST_SURFACE_VALUE, SQUARE_METER, DUMMY_DATE));
   }
 
   @AfterEach
@@ -74,19 +81,20 @@ class CommunityUsedSurfaceServiceIT extends FacadeIT {
         .build();
   }
 
-  private static CommunityUsedSurface communityUsedSurface(double value, Instant usageDatetime) {
+  private static CommunityUsedSurface communityUsedSurface(
+      double value, SurfaceUnit unit, Instant usageDatetime) {
     return CommunityUsedSurface.builder()
         .id("id")
         .communityAuthorizationId(COMMUNITY_ID)
         .usedSurface(value)
-        .unit(SQUARE_METER)
+        .unit(unit)
         .usageDatetime(usageDatetime)
         .build();
   }
 
   @Test
   void can_take_last_used_surface() {
-    var expectedUsedSurface = communityUsedSurface(LAST_SURFACE_VALUE, DUMMY_DATE);
+    var expectedUsedSurface = communityUsedSurface(LAST_SURFACE_VALUE, SQUARE_METER, DUMMY_DATE);
 
     var actualUsedSurface =
         subject.getTotalUsedSurfaceByCommunityId(COMMUNITY_ID, SQUARE_METER).orElseThrow();
@@ -98,9 +106,9 @@ class CommunityUsedSurfaceServiceIT extends FacadeIT {
 
   @Test
   void can_append_new_used_surface_with_last_used_surface() {
-    var exceptedUsedSurface = communityUsedSurface(LAST_SURFACE_VALUE + 20, now());
+    var exceptedUsedSurface = communityUsedSurface(LAST_SURFACE_VALUE + 20, SQUARE_METER, now());
 
-    subject.appendLastUsedSurface(communityUsedSurface(20, now()));
+    subject.appendLastUsedSurface(communityUsedSurface(20, SQUARE_METER, now()));
     var actualLastUsedSurface =
         subject.getTotalUsedSurfaceByCommunityId(COMMUNITY_ID, SQUARE_METER).orElseThrow();
 
@@ -110,9 +118,9 @@ class CommunityUsedSurfaceServiceIT extends FacadeIT {
   @Test
   void add_first_new_last_used_surface() {
     communityUsedSurfaceRepository.deleteAll();
-    var exceptedUsedSurface = communityUsedSurface(15, now());
+    var exceptedUsedSurface = communityUsedSurface(15, SQUARE_METER, now());
 
-    subject.appendLastUsedSurface(communityUsedSurface(15, now()));
+    subject.appendLastUsedSurface(communityUsedSurface(15, SQUARE_METER, now()));
     var actualUsedSurface =
         subject.getTotalUsedSurfaceByCommunityId(COMMUNITY_ID, SQUARE_METER).orElseThrow();
 
@@ -137,6 +145,17 @@ class CommunityUsedSurfaceServiceIT extends FacadeIT {
     var actual = subject.getUsage(principal, SQUARE_METER);
 
     assertEquals(expected, actual);
+  }
+
+  @Test
+  void convertTo() {
+    var geometry = randomWGS84Polygon();
+    var communityUsedSurface = communityUsedSurface(geometry.getArea(), SQUARE_DEGREE, now());
+
+    var actualCommunityUsedSurface = subject.convertTo(communityUsedSurface, SQUARE_METER);
+    var expected = squareMeterArea.apply(geometry);
+
+    assertEquals(expected, actualCommunityUsedSurface.getUsedSurface(), 1e-3);
   }
 
   @Test
@@ -179,6 +198,18 @@ class CommunityUsedSurfaceServiceIT extends FacadeIT {
         .communityAuthorizationId(COMMUNITY_ID)
         .multiPolygon(multiPolygon())
         .build();
+  }
+
+  private static Polygon randomWGS84Polygon() {
+    var coordinates =
+        new Coordinate[] {
+          new Coordinate(2.3487004023124882, 48.84755491826553),
+          new Coordinate(2.348633102506028, 48.84752574466032),
+          new Coordinate(2.3486833102980142, 48.84750184338105),
+          new Coordinate(2.3487324498386215, 48.8475341804033),
+          new Coordinate(2.3487004023124882, 48.84755491826553)
+        };
+    return geometryFactory.createPolygon(coordinates);
   }
 
   private static MultiPolygon multiPolygon() {

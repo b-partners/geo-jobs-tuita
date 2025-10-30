@@ -4,6 +4,7 @@ import static app.bpartners.geojobs.model.geometry.GeometryFactory.geometryFacto
 import static app.bpartners.geojobs.service.geojson.GeometryConverter.unifyMultiPolygon;
 
 import app.bpartners.geojobs.endpoint.rest.model.Feature;
+import app.bpartners.geojobs.endpoint.rest.model.Point;
 import app.bpartners.geojobs.repository.model.detection.Detection;
 import app.bpartners.geojobs.service.geojson.GeometryConverter;
 import java.util.List;
@@ -18,7 +19,7 @@ import org.springframework.stereotype.Component;
 @Slf4j
 @Component
 @RequiredArgsConstructor
-public class DetectionProvidedZoneUnifier implements Function<Detection, MultiPolygon> {
+public class DetectionZoneToProcessProvider implements Function<Detection, MultiPolygon> {
   private final GeometryConverter geometryConverter;
 
   @Override
@@ -28,10 +29,6 @@ public class DetectionProvidedZoneUnifier implements Function<Detection, MultiPo
     }
     var providedGeoJsonZone = detection.getProvidedGeoJsonZone();
     return apply(detection.getId(), providedGeoJsonZone);
-  }
-
-  public MultiPolygon applyMultiGeoJson(Detection detection) {
-    return apply(detection.getId(), detection.getMultiPolygonGeoJsonZone());
   }
 
   private MultiPolygon apply(String detectionId, List<Feature> featureList) {
@@ -49,19 +46,16 @@ public class DetectionProvidedZoneUnifier implements Function<Detection, MultiPo
                 return null;
               }
               var geometryType = geometry.getActualInstance();
-              MultiPolygon multiPolygonJts;
-              switch (geometryType) {
+              return switch (geometryType) {
+                case Point point -> geometryConverter.retrieveNearestRoofMultiPolygon(point);
                 case app.bpartners.geojobs.endpoint.rest.model.Polygon polygon ->
-                    multiPolygonJts = geometryConverter.apply(List.of(polygon.getCoordinates()));
+                    geometryConverter.apply(List.of(polygon.getCoordinates()));
                 case app.bpartners.geojobs.endpoint.rest.model.MultiPolygon multiPolygon ->
-                    multiPolygonJts = geometryConverter.apply(multiPolygon.getCoordinates());
+                    geometryConverter.apply(multiPolygon.getCoordinates());
                 default ->
                     throw new UnsupportedOperationException(
-                        "Unsupported geometry type to retrieve multiPolygon for"
-                            + " tileDetectionTask : "
-                            + geometryType);
-              }
-              return multiPolygonJts;
+                        "Unsupported geometry type to retrieve zone to process : " + geometryType);
+              };
             })
         .filter(Objects::nonNull)
         .reduce(unifyMultiPolygon())

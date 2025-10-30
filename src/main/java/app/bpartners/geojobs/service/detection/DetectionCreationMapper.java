@@ -3,7 +3,6 @@ package app.bpartners.geojobs.service.detection;
 import static app.bpartners.geojobs.endpoint.rest.controller.mapper.FeatureMapper.toDomainFeature;
 import static app.bpartners.geojobs.endpoint.rest.model.Feature.TypeEnum.FEATURE;
 import static app.bpartners.geojobs.endpoint.rest.model.GeoJsonOutput.ZIP;
-import static app.bpartners.geojobs.model.exception.ApiException.ExceptionType.SERVER_EXCEPTION;
 import static java.util.UUID.randomUUID;
 
 import app.bpartners.geojobs.endpoint.rest.controller.mapper.DetectableObjectTypeMapper;
@@ -11,18 +10,13 @@ import app.bpartners.geojobs.endpoint.rest.controller.mapper.FeatureMapper;
 import app.bpartners.geojobs.endpoint.rest.controller.mapper.GeoJsonDelimitationTypeMapper;
 import app.bpartners.geojobs.endpoint.rest.model.*;
 import app.bpartners.geojobs.endpoint.rest.validator.FeatureTypeChecker;
-import app.bpartners.geojobs.model.exception.ApiException;
 import app.bpartners.geojobs.repository.CommunityAuthorizationRepository;
 import app.bpartners.geojobs.repository.model.Feature;
 import app.bpartners.geojobs.repository.model.community.CommunityAuthorization;
 import app.bpartners.geojobs.repository.model.detection.Detection;
-import app.bpartners.geojobs.service.FeatureConverter;
-import app.bpartners.geojobs.service.TileMultiPolygonFrame;
 import app.bpartners.geojobs.service.dashboard.AreaPictureApi;
 import app.bpartners.geojobs.service.dashboard.component.AreaPictureMapLayer;
 import app.bpartners.geojobs.service.geoserver.GeoServerConfiguration;
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import java.math.BigDecimal;
 import java.util.List;
 import javax.annotation.Nullable;
@@ -35,10 +29,8 @@ public class DetectionCreationMapper {
   private final DetectableObjectTypeMapper detectableObjectTypeMapper;
   private final FeatureTypeChecker featureTypeChecker;
   private final CommunityAuthorizationRepository communityAuthRepository;
-  private final FeatureConverter featureConverter;
   private final AreaPictureApi areaPictureApi;
   private final GeoServerConfiguration geoServerConfiguration;
-  private final TileMultiPolygonFrame tileMultiPolygonFrame;
   private final GeoJsonDelimitationTypeMapper geoJsonDelimitationTypeMapper;
 
   public Detection apply(
@@ -51,17 +43,15 @@ public class DetectionCreationMapper {
     var detectionId = randomUUID().toString();
     var detectableObjectConfigurations =
         detectableObjectTypeMapper.mapDefaultConfigurationsFromModel(detectionId, modelName);
-    var restProvidedGeoJsonZone = createDetection.getGeoJsonZone();
-    var domainProvidedGeoJsonZone = getActualProvidedGeoJson(restProvidedGeoJsonZone);
-    var multiPolygonGeoJsonZoneToBeProcessed =
-        extractDetectionMultiPolygonGeoJson(restProvidedGeoJsonZone, domainProvidedGeoJsonZone);
-    var polygonGeoJsonZoneToBeProcessed = extractDetectionPolygonGeoJson(restProvidedGeoJsonZone);
+    var providedGeoJson = createDetection.getGeoJsonZone();
+    var domainProvidedGeoJsonZone = getActualProvidedGeoJson(providedGeoJson);
+    var polygonGeoJsonZoneToBeProcessed = extractDetectionPolygonGeoJson(providedGeoJson);
     var finalGeoServerProperties =
         extractGeoServerProperties(
             createDetection.getGeoServerProperties(),
             communityOwnerId,
-            restProvidedGeoJsonZone,
-            multiPolygonGeoJsonZoneToBeProcessed);
+            providedGeoJson,
+            domainProvidedGeoJsonZone);
     return Detection.builder()
         .id(detectionId)
         .endToEndId(detectionE2Id)
@@ -72,7 +62,7 @@ public class DetectionCreationMapper {
         .detectableObjectConfigurations(detectableObjectConfigurations)
         .geoServerProperties(finalGeoServerProperties)
         .providedGeoJsonZone(domainProvidedGeoJsonZone)
-        .multiPolygonGeoJsonZone(multiPolygonGeoJsonZoneToBeProcessed)
+        .multiPolygonGeoJsonZone(domainProvidedGeoJsonZone)
         .polygonGeoJsonZone(polygonGeoJsonZoneToBeProcessed)
         .detectableObjectModel(detectableObjectModel)
         .isOutputZipped(
@@ -173,35 +163,10 @@ public class DetectionCreationMapper {
   private List<app.bpartners.geojobs.repository.model.Feature> extractDetectionMultiPolygonGeoJson(
       List<app.bpartners.geojobs.endpoint.rest.model.Feature> geoJsonZone,
       List<app.bpartners.geojobs.repository.model.Feature> providedGeoJsonZone) {
-    var featuresHasAllPointInstances =
-        geoJsonZone != null && featureTypeChecker.apply(geoJsonZone, Point.class);
-
     if (providedGeoJsonZone.isEmpty() || geoJsonZone == null) {
       return providedGeoJsonZone;
     }
-
-    if (featuresHasAllPointInstances) {
-      geoJsonZone.forEach(
-          feature -> {
-            var point = feature.getGeometry().getPoint();
-            var domainFeature = toDomainFeature(feature);
-            var longitude = point.getCoordinates().getFirst();
-            var latitude = point.getCoordinates().getLast();
-            var jtsMultiPolygonFrame =
-                tileMultiPolygonFrame.apply(longitude, latitude).orElseThrow();
-            var multiPolygonConverted = featureConverter.fromJtsMultiPolygon(jtsMultiPolygonFrame);
-            try {
-              var featurePointAsString =
-                  new ObjectMapper().findAndRegisterModules().writeValueAsString(domainFeature);
-              feature.getProperties().put("point", featurePointAsString);
-            } catch (JsonProcessingException e) {
-              throw new ApiException(SERVER_EXCEPTION, e);
-            }
-            feature.getGeometry().setActualInstance(multiPolygonConverted);
-          });
-      return geoJsonZone.stream().map(FeatureMapper::toDomainFeature).toList();
-    }
-    return providedGeoJsonZone;
+    return geoJsonZone.stream().map(FeatureMapper::toDomainFeature).toList();
   }
 
   private List<BigDecimal> retrieveFirstPoint(

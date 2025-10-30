@@ -1,26 +1,26 @@
 package app.bpartners.geojobs.service.event;
 
 import static app.bpartners.geojobs.endpoint.rest.controller.mapper.FeatureMapper.toRestFeature;
+import static app.bpartners.geojobs.endpoint.rest.model.Feature.TypeEnum.FEATURE;
+import static app.bpartners.geojobs.endpoint.rest.model.Polygon.TypeEnum.POLYGON;
+import static app.bpartners.geojobs.repository.model.ArcgisImageZoom.HOUSES_0;
 import static app.bpartners.geojobs.service.geojson.GeometryConverter.getRoofMultiPolygon;
 
-import app.bpartners.geojobs.endpoint.event.EventProducer;
-import app.bpartners.geojobs.endpoint.event.model.GeoJsonConversionProcessSucceeded;
-import app.bpartners.geojobs.endpoint.event.model.ZoneVggRequested;
+import app.bpartners.geojobs.endpoint.event.model.FeatureVggRequested;
 import app.bpartners.geojobs.endpoint.rest.controller.mapper.FeatureMapper;
-import app.bpartners.geojobs.endpoint.rest.model.Feature;
-import app.bpartners.geojobs.endpoint.rest.model.TileCoordinates;
+import app.bpartners.geojobs.endpoint.rest.model.*;
 import app.bpartners.geojobs.model.geometry.PolygonObjectType;
 import app.bpartners.geojobs.model.geometry.TiledPixelPolygon;
 import app.bpartners.geojobs.model.geometry.VGGFactory;
 import app.bpartners.geojobs.repository.DetectionRepository;
 import app.bpartners.geojobs.repository.MachineDetectedTileRepository;
-import app.bpartners.geojobs.repository.TilingTaskRepository;
 import app.bpartners.geojobs.repository.model.detection.*;
-import app.bpartners.geojobs.repository.model.tiling.Tile;
+import app.bpartners.geojobs.repository.model.detection.DetectableObjectConfiguration;
 import app.bpartners.geojobs.service.DetectionVGGUpdate;
 import app.bpartners.geojobs.service.PolygonCoordinatesCloser;
 import app.bpartners.geojobs.service.TileCoordinatesPolygonIntersection;
 import app.bpartners.geojobs.service.geojson.GeometryConverter;
+import app.bpartners.geojobs.service.tiling.TileFinder;
 import java.math.BigDecimal;
 import java.util.Comparator;
 import java.util.List;
@@ -34,59 +34,114 @@ import org.springframework.stereotype.Service;
 @Slf4j
 @Service
 @RequiredArgsConstructor
-public class ZoneVggRequestedService implements Consumer<ZoneVggRequested> {
+public class FeatureVggRequestedService implements Consumer<FeatureVggRequested> {
   private final DetectionRepository detectionRepository;
   private final MachineDetectedTileRepository detectedTileRepository;
   private final VGGFactory vggFactory;
   private final GeometryConverter geometryConverter;
-  private final TilingTaskRepository tilingTaskRepository;
   private final DetectionVGGUpdate detectionVGGUpdate;
   private final PolygonCoordinatesCloser polygonCoordinatesCloser;
   private final TileCoordinatesPolygonIntersection tileCoordinatesPolygonIntersection;
   private final FeatureMapper featureMapper;
   private final DetectionRoofPropertiesRequestedService detectionRoofPropertiesRequestedService;
-  private final EventProducer eventProducer;
+  private final TileFinder tileFinder;
 
   @Override
-  public void accept(ZoneVggRequested event) {
+  public void accept(FeatureVggRequested event) {
     var detectionIdentifier = event.getDetectionIdentifier();
-    var retrievedDetection = detectionRepository.findById(detectionIdentifier).orElseThrow();
-    var machineDetectedTiles =
-        detectedTileRepository.findAllByZdjJobId(retrievedDetection.getZdjId());
-    var detectionWithRoofProperties =
-        detectionRoofPropertiesRequestedService.apply(retrievedDetection, machineDetectedTiles);
-    var polygonGeoJsonZone = detectionWithRoofProperties.getPolygonGeoJsonZone();
+    var feature = event.getFeature();
+    var detection = detectionRepository.findById(detectionIdentifier).orElseThrow();
+    if (!detection.hasToitureModelName()) {
+      log.error("Only BP_TOITURE model is supported to generated VGG from now");
+      return;
+    }
+    var machineDetectedTiles = detectedTileRepository.findAllByZdjJobId(detection.getZdjId());
+    var featureDelimitationWithRoofProperties =
+        detectionRoofPropertiesRequestedService.applyRoofPropertiesOnDelimitation(
+            machineDetectedTiles,
+            detection.getFeatureWithDelimitations().stream()
+                .filter(
+                    f ->
+                        f.getRestFeature() != null
+                            && f.getRestFeature().getGeometry() != null
+                            && f.getRestFeature().getGeometry().equals(feature.getGeometry()))
+                .findFirst()
+                .orElseThrow());
+    var polygonGeoJson = getPolygonGeoJsonFromFeature(feature);
+    if (polygonGeoJson == null) return;
     var detectableTypes =
-        detectionWithRoofProperties.getDetectableObjectConfigurations().stream()
+        detection.getDetectableObjectConfigurations().stream()
             .map(DetectableObjectConfiguration::getObjectType)
             .toList();
-    var latLonRoofFeatures =
-        detectionWithRoofProperties.getFeatureWithDelimitations().stream()
-            .map(FeatureWithDelimitation::getRestDelimitations)
-            .flatMap(features -> features != null ? features.stream() : null)
-            .filter(Objects::nonNull)
-            .toList();
-    var tileCoordinates = retrieveTileCoordinates(detectionWithRoofProperties);
+    var latLonRoofFeatures = featureDelimitationWithRoofProperties.getRestDelimitations();
     var tiledPixelPolygons =
         getTiledPixelPolygon(
-            polygonGeoJsonZone, latLonRoofFeatures, detectableTypes, machineDetectedTiles);
+            polygonGeoJson, latLonRoofFeatures, detectableTypes, machineDetectedTiles);
+    var featureTileCoordinates = retrieveFeatureTileCoordinates(feature);
 
-    var vggMap = vggFactory.from(tiledPixelPolygons, tileCoordinates);
+    var vggMap = vggFactory.from(tiledPixelPolygons, featureTileCoordinates);
 
-    var newDetection = detectionVGGUpdate.apply(vggMap.values(), detectionWithRoofProperties);
+    var newDetection = detectionVGGUpdate.apply(vggMap.values(), detection, event.getFeatureNb());
 
-    var savedDetection = detectionRepository.save(newDetection);
-
-    eventProducer.accept(List.of(new GeoJsonConversionProcessSucceeded(savedDetection)));
+    detectionRepository.save(newDetection);
   }
 
-  private List<TileCoordinates> retrieveTileCoordinates(Detection detection) {
-    var tilingTasks = tilingTaskRepository.findAllByJobId(detection.getZtjId());
-    return tilingTasks.stream()
-        .map(
-            parcelTilingTask ->
-                parcelTilingTask.getTiles().stream().map(Tile::getCoordinates).toList())
-        .flatMap(List::stream)
+  private Feature getPolygonGeoJsonFromFeature(Feature feature) {
+    Feature polygonGeoJsonZone;
+    var geometryInstance = feature.getGeometry().getActualInstance();
+    switch (geometryInstance) {
+      case Point point -> {
+        var roofMultiPolygonCoordinates =
+            geometryConverter.multiPolygonToNestedList(
+                geometryConverter.retrieveNearestRoofMultiPolygon(point));
+        if (roofMultiPolygonCoordinates.size() > 1) {
+          log.error(
+              "MultiPolygon roof with more than one polygon is not supported, only the first one is"
+                  + " taken");
+        }
+        polygonGeoJsonZone =
+            new Feature()
+                .type(FEATURE)
+                .properties(feature.getProperties())
+                .geometry(
+                    new FeatureGeometry(
+                        new app.bpartners.geojobs.endpoint.rest.model.Polygon()
+                            .type(POLYGON)
+                            .coordinates(roofMultiPolygonCoordinates.getFirst())));
+      }
+      case app.bpartners.geojobs.endpoint.rest.model.Polygon ignored -> {
+        polygonGeoJsonZone = feature;
+      }
+      case MultiPolygon multiPolygon -> {
+        if (multiPolygon.getCoordinates().size() > 1) {
+          log.error(
+              "Provided multiPolygon with more than one polygon is not supported, only the first"
+                  + " one is taken");
+        }
+        polygonGeoJsonZone =
+            new Feature()
+                .type(FEATURE)
+                .properties(feature.getProperties())
+                .geometry(
+                    new FeatureGeometry(
+                        new app.bpartners.geojobs.endpoint.rest.model.Polygon()
+                            .type(POLYGON)
+                            .coordinates(multiPolygon.getCoordinates().getFirst())));
+      }
+      default -> {
+        log.error(
+            "Unexpected geometry type: {} aborting vgg computing for feature {}",
+            geometryInstance,
+            feature);
+        return null;
+      }
+    }
+    return polygonGeoJsonZone;
+  }
+
+  private List<TileCoordinates> retrieveFeatureTileCoordinates(Feature feature) {
+    var polygonGeometry = geometryConverter.retrievePolygonGeometry(feature);
+    return tileFinder.getFromGeoJsonPolygon(polygonGeometry, HOUSES_0.getZoomLevel()).stream()
         .sorted(
             Comparator.comparing(TileCoordinates::getZ)
                 .thenComparing(TileCoordinates::getY)

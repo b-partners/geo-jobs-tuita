@@ -58,6 +58,23 @@ public class DetectionVGGUpdate implements BiFunction<VGG, Detection, Detection>
     return detection.toBuilder().vggFileKey(fileKey).build();
   }
 
+  private Detection apply(Detection detection, byte[] vggAsByte, int featureNb) {
+    var zoneName = detection.getZoneName();
+    var zoneDetectionJobId = detection.getZdjId();
+    var fileKey =
+        VGG_BUCKET_FOLDER + zoneDetectionJobId + "/" + featureNb + "/" + zoneName + ".json";
+    var vggAsFile =
+        fileWriter.write(vggAsByte, createTempDirectory(), zoneName + GEO_JSON_EXTENSION);
+
+    bucketComponent.upload(vggAsFile, fileKey);
+
+    return featureNb == 0 ? detection.toBuilder().vggFileKey(fileKey).build() : detection;
+  }
+
+  public Detection apply(Collection<VGG> vggSet, Detection detection, int featureNb) {
+    return apply(detection, getVggCollection(vggSet), featureNb);
+  }
+
   public Detection apply(Collection<VGG> vggSet, Detection detection) {
     return apply(detection, getVggCollection(vggSet));
   }

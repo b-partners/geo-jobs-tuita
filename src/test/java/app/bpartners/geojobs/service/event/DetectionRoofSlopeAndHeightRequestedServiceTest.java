@@ -26,7 +26,7 @@ class DetectionRoofSlopeAndHeightRequestedServiceTest {
   FeatureMapper featureMapperMock = mock();
   DetectionRepository detectionRepositoryMock = mock();
   LidarRoofsAnalysisProcessor lidarRoofsAnalysisProcessorMock = mock();
-  ZoneVggRequestedService zoneVggRequestedServiceMock = mock();
+  FeatureVggRequestedService zoneVggRequestedServiceMock = mock();
   EntityManager entityManagerMock = mock();
 
   DetectionRoofSlopeAndHeightRequestedService subject =

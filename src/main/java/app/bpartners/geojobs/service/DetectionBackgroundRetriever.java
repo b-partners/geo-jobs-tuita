@@ -20,7 +20,7 @@ import org.springframework.stereotype.Component;
 @Component
 @RequiredArgsConstructor
 public class DetectionBackgroundRetriever implements Function<Detection, MultiPolygon> {
-  private final DetectionProvidedZoneUnifier detectionProvidedZoneUnifier;
+  private final DetectionZoneToProcessProvider detectionProvidedZoneUnifier;
   private final GeometryConverter geometryConverter;
 
   @Override

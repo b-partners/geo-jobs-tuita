@@ -8,6 +8,7 @@ import app.bpartners.geojobs.file.hash.FileHashAlgorithm;
 import java.io.File;
 import java.net.URL;
 import java.time.Duration;
+import java.util.Optional;
 import lombok.AllArgsConstructor;
 import lombok.SneakyThrows;
 import org.springframework.stereotype.Component;
@@ -96,8 +97,18 @@ public class BucketComponent {
   }
 
   public URL presign(String bucketKey, Duration expiration) {
-    GetObjectRequest getObjectRequest =
-        GetObjectRequest.builder().bucket(bucketConf.getBucketName()).key(bucketKey).build();
+    return presign(bucketKey, expiration, Optional.empty());
+  }
+
+  // TODO: move to customComponent
+  public URL presign(String bucketKey, Duration expiration, Optional<String> fileName) {
+    var requestBuilder =
+        GetObjectRequest.builder().bucket(bucketConf.getBucketName()).key(bucketKey);
+    if (fileName.isPresent()) {
+      requestBuilder.responseContentDisposition(
+          "attachment; filename=" + "\"" + fileName.get() + "\"");
+    }
+    GetObjectRequest getObjectRequest = requestBuilder.build();
     PresignedGetObjectRequest presignedRequest =
         bucketConf
             .getS3Presigner()

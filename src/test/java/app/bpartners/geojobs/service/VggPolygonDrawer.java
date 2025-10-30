@@ -8,8 +8,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import java.awt.*;
 import java.awt.image.BufferedImage;
 import java.io.File;
-import java.util.Iterator;
-import java.util.Map;
+import java.util.*;
 import javax.imageio.ImageIO;
 import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
@@ -24,59 +23,104 @@ class VggPolygonDrawer {
   @SneakyThrows
   @Test
   void draw_polygon_on_file() {
-    File vggFile = new ClassPathResource("vgg/annotations-vgg.json").getFile();
-    File imageFile = new ClassPathResource("images/extender/extended_image.jpg").getFile();
+    File vggFile = new ClassPathResource("vgg/polygon-1.json").getFile();
+    File imageFile = new ClassPathResource("vgg/image-1.jpg").getFile();
 
     var actual = drawPolygonsOnImage(vggFile, imageFile);
 
     assertNotNull(actual);
-    actual.delete();
   }
 
   private File drawPolygonsOnImage(File vggFile, File imageFile) throws Exception {
     // Lire l'image
     BufferedImage image = ImageIO.read(imageFile);
     Graphics2D g2d = image.createGraphics();
-    g2d.setColor(Color.RED);
-    g2d.setStroke(new BasicStroke(10));
+    g2d.setStroke(new BasicStroke(4));
+    g2d.setFont(new Font("Arial", Font.PLAIN, 36));
 
-    // Lire le fichier JSON
+    // Lire le JSON
     ObjectMapper mapper = new ObjectMapper();
     JsonNode root = mapper.readTree(vggFile);
 
-    Iterator<Map.Entry<String, JsonNode>> fileEntries = root.fields();
-    while (fileEntries.hasNext()) {
-      Map.Entry<String, JsonNode> fileEntry = fileEntries.next();
-      JsonNode regions = fileEntry.getValue().get("regions");
+    if (!root.isArray()) {
+      throw new IllegalArgumentException("Le fichier VGG doit contenir une liste d'éléments");
+    }
 
-      if (regions != null && regions.isObject()) {
-        Iterator<Map.Entry<String, JsonNode>> regionEntries = regions.fields();
-        while (regionEntries.hasNext()) {
-          Map.Entry<String, JsonNode> regionEntry = regionEntries.next();
-          JsonNode shape = regionEntry.getValue().get("shape_attributes");
-          JsonNode region = regionEntry.getValue().get("region_attributes");
+    int addressCount = 0; // Compteur pour espacer les adresses
 
-          if (shape != null && "polygon".equalsIgnoreCase(shape.get("name").asText())) {
-            JsonNode xPointsNode = shape.get("all_points_x");
-            JsonNode yPointsNode = shape.get("all_points_y");
+    for (JsonNode element : root) {
+      // Chaque élément contient une clé UUID dynamique
+      Iterator<Map.Entry<String, JsonNode>> uuidEntries = element.fields();
+      while (uuidEntries.hasNext()) {
+        Map.Entry<String, JsonNode> uuidEntry = uuidEntries.next();
+        JsonNode vggData = uuidEntry.getValue();
 
-            int numPoints = xPointsNode.size();
-            int[] xPoints = new int[numPoints];
-            int[] yPoints = new int[numPoints];
+        JsonNode properties = vggData.get("properties");
+        JsonNode regions = vggData.get("regions");
 
-            for (int i = 0; i < numPoints; i++) {
-              xPoints[i] = xPointsNode.get(i).asInt();
-              yPoints[i] = yPointsNode.get(i).asInt();
+        // Récupérer la première adresse si disponible
+        String firstAddress = null;
+        if (properties != null
+            && properties.has("addresses")
+            && properties.get("addresses").isArray()) {
+          JsonNode addressesNode = properties.get("addresses");
+          if (addressesNode.size() > 0) {
+            firstAddress = addressesNode.get(0).asText();
+          }
+        }
+
+        int firstPolygonX = -1;
+        int firstPolygonY = -1;
+
+        if (regions != null && regions.isObject()) {
+          Iterator<Map.Entry<String, JsonNode>> regionEntries = regions.fields();
+          while (regionEntries.hasNext()) {
+            Map.Entry<String, JsonNode> regionEntry = regionEntries.next();
+            JsonNode regionNode = regionEntry.getValue();
+            JsonNode shape = regionNode.get("shape_attributes");
+            JsonNode region = regionNode.get("region_attributes");
+
+            if (shape != null && "Polygon".equalsIgnoreCase(shape.get("name").asText())) {
+              JsonNode xPointsNode = shape.get("all_points_x");
+              JsonNode yPointsNode = shape.get("all_points_y");
+
+              int numPoints = xPointsNode.size();
+              int[] xPoints = new int[numPoints];
+              int[] yPoints = new int[numPoints];
+
+              for (int i = 0; i < numPoints; i++) {
+                xPoints[i] = (int) Math.round(xPointsNode.get(i).asDouble());
+                yPoints[i] = (int) Math.round(yPointsNode.get(i).asDouble());
+              }
+
+              String label = region.has("label") ? region.get("label").asText() : "unknown";
+              var color = getColorFromDetectedType(DetectableType.valueOf(label.toUpperCase()));
+
+              Polygon polygon = new Polygon(xPoints, yPoints, numPoints);
+              g2d.setColor(color != null ? Color.decode(color) : Color.RED);
+              g2d.drawPolygon(polygon);
+
+              // Retenir la première position pour l’adresse
+              if (firstPolygonX == -1 && firstPolygonY == -1) {
+                firstPolygonX = Arrays.stream(xPoints).min().orElse(0);
+                firstPolygonY = Arrays.stream(yPoints).min().orElse(0) - 15;
+              }
             }
-            var label = region.get("label").asText();
-            var detectableType = DetectableType.valueOf(label);
-            var color = getColorFromDetectedType(detectableType);
+          }
 
-            Polygon polygon = new Polygon(xPoints, yPoints, numPoints);
-            if (color != null) {
-              g2d.setColor(Color.decode(color));
-            }
-            g2d.drawPolygon(polygon);
+          // Afficher l’adresse une seule fois par VGG, avec espacement
+          if (firstAddress != null
+              && !firstAddress.isBlank()
+              && firstPolygonX >= 0
+              && firstPolygonY >= 0) {
+            g2d.setColor(Color.BLUE);
+
+            // Décalage vertical selon le nombre d’adresses déjà affichées
+            int spacing = 40; // espace entre deux textes
+            int textY = firstPolygonY + (addressCount * spacing);
+
+            g2d.drawString(firstAddress, firstPolygonX, textY);
+            addressCount++;
           }
         }
       }
@@ -84,9 +128,10 @@ class VggPolygonDrawer {
 
     g2d.dispose();
 
-    File outputFile = new File("image_annotated.jpg");
-    ImageIO.write(image, "jpg", outputFile);
-    return outputFile;
+    // Sauvegarde du résultat
+    File output = new File("image_annotated-2.png");
+    ImageIO.write(image, "png", output);
+    return output;
   }
 
   private static String getColorFromDetectedType(DetectableType detectableType) {

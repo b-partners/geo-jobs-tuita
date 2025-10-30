@@ -3,6 +3,7 @@ package app.bpartners.geojobs.service;
 import static app.bpartners.geojobs.endpoint.rest.model.Feature.TypeEnum.FEATURE;
 import static app.bpartners.geojobs.endpoint.rest.model.ModelName.TOITURE;
 import static app.bpartners.geojobs.endpoint.rest.model.Point.TypeEnum.POINT;
+import static java.lang.System.currentTimeMillis;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.mockito.ArgumentMatchers.any;
@@ -19,6 +20,7 @@ import java.net.URI;
 import java.time.Duration;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Optional;
 import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
 import org.junit.jupiter.api.BeforeEach;
@@ -62,17 +64,20 @@ class DetectionFeaturesResultImageRetrieverTest {
     var longitude = BigDecimal.valueOf(-0.249317);
     var layer = "cite:PCRS";
     var features = List.of(somePoint(longitude, latitude, null));
+    var randomZoneName = "random zone name " + currentTimeMillis();
     when(detectionMock.hasToitureModelName()).thenReturn(true);
     when(detectionMock.isSucceeded()).thenReturn(true);
     when(detectionMock.getProvidedGeoJsonZone()).thenReturn(features);
     when(detectionMock.getDetectableObjectModel())
         .thenReturn(new DetectableObjectModel().modelName(TOITURE));
+    when(detectionMock.getZoneName()).thenReturn(randomZoneName);
     when(detectionMock.getGeoServerProperties())
         .thenReturn(
             new GeoServerProperties().geoServerParameter(new GeoServerParameter().layers(layer)));
-    when(bucketComponentMock.presign(
+    when(customBucketComponentMock.presign(
             layer + "/extended_original_" + longitude + "_" + latitude + ".jpg",
-            Duration.ofHours(1L)))
+            Duration.ofHours(1L),
+            Optional.of(randomZoneName + "_0.jpg")))
         .thenReturn(new URI(PRE_SIGNED_S3_URL).toURL());
 
     var actual = subject.apply(detectionMock);
@@ -91,6 +96,8 @@ class DetectionFeaturesResultImageRetrieverTest {
     var longitude = BigDecimal.valueOf(-0.249317);
     var layer = "cite:PCRS";
     var features = List.of(somePoint(longitude, latitude, null));
+    var randomZoneName = "random zone name " + currentTimeMillis();
+    when(detectionMock.getZoneName()).thenReturn(randomZoneName);
     when(detectionMock.hasToitureModelName()).thenReturn(true);
     when(detectionMock.isSucceeded()).thenReturn(true);
     when(detectionMock.getProvidedGeoJsonZone()).thenReturn(features);
@@ -101,10 +108,6 @@ class DetectionFeaturesResultImageRetrieverTest {
             new GeoServerProperties().geoServerParameter(new GeoServerParameter().layers(layer)));
     when(imageAttributeRetrieverMock.apply(any())).thenReturn(IMAGE_URL_FROM_RETRIEVER);
     when(vggAttributeRetrieverMock.apply(any())).thenReturn(VGG_URL_FROM_RETRIEVER);
-    when(bucketComponentMock.presign(
-            layer + "/extended_original_" + longitude + "_" + latitude + ".jpg",
-            Duration.ofHours(1L)))
-        .thenReturn(new URI(PRE_SIGNED_S3_URL).toURL());
 
     var actual = subject.apply(detectionMock);
 

@@ -93,7 +93,7 @@ Resources:
     Type: AWS::Serverless::Function
     Properties:
       Handler: app.bpartners.geojobs.handler.MailboxEventHandler::handleRequest
-      MemorySize: 1024
+      MemorySize: 3072
       Timeout: 900 #note(sqs-visibility)
       Role: !Sub '{{resolve:ssm:/geo-jobs-tuita/${Env}/execution/role-arn}}'
       Events:

@@ -14,11 +14,9 @@ import app.bpartners.geojobs.repository.model.detection.Detection;
 import app.bpartners.geojobs.repository.model.detection.ZoneDetectionJob;
 import app.bpartners.geojobs.repository.model.tiling.ZoneTilingJob;
 import app.bpartners.geojobs.service.JobFinishedMailer;
-import app.bpartners.geojobs.service.PointExtendedImageRequest;
 import app.bpartners.geojobs.service.detection.ZoneDetectionJobService;
 import java.util.ArrayList;
 import java.util.Optional;
-import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.mock.mockito.MockBean;
@@ -28,12 +26,6 @@ class ZoneTilingJobStatusChangedIT extends FacadeIT {
   @MockBean private JobFinishedMailer<ZoneTilingJob> mailer;
   @MockBean private ZoneDetectionJobService zdjService;
   @MockBean private DetectionRepository detectionRepository;
-  @MockBean private PointExtendedImageRequest pointExtendedImageRequestMock;
-
-  @BeforeEach
-  public void setUp() {
-    doNothing().when(pointExtendedImageRequestMock).accept(any(), any(), any());
-  }
 
   @Test
   void send_email_ok() {

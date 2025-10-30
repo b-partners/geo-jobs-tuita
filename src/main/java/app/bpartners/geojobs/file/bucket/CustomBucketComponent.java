@@ -3,13 +3,18 @@ package app.bpartners.geojobs.file.bucket;
 import static java.io.File.createTempFile;
 
 import java.io.File;
+import java.net.URL;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.SneakyThrows;
 import org.springframework.stereotype.Component;
 import software.amazon.awssdk.services.s3.model.*;
+import software.amazon.awssdk.services.s3.presigner.model.GetObjectPresignRequest;
+import software.amazon.awssdk.services.s3.presigner.model.PresignedGetObjectRequest;
 import software.amazon.awssdk.transfer.s3.model.DownloadFileRequest;
 import software.amazon.awssdk.transfer.s3.model.FileDownload;
 
@@ -18,6 +23,23 @@ import software.amazon.awssdk.transfer.s3.model.FileDownload;
 @AllArgsConstructor
 public class CustomBucketComponent {
   private final BucketConf bucketConf;
+
+  public URL presign(String bucketKey, Duration expiration, Optional<String> fileName) {
+    var requestBuilder =
+        GetObjectRequest.builder().bucket(bucketConf.getBucketName()).key(bucketKey);
+    fileName.ifPresent(
+        s -> requestBuilder.responseContentDisposition("attachment; filename=" + "\"" + s + "\""));
+    GetObjectRequest getObjectRequest = requestBuilder.build();
+    PresignedGetObjectRequest presignedRequest =
+        bucketConf
+            .getS3Presigner()
+            .presignGetObject(
+                GetObjectPresignRequest.builder()
+                    .signatureDuration(expiration)
+                    .getObjectRequest(getObjectRequest)
+                    .build());
+    return presignedRequest.url();
+  }
 
   public List<S3Object> listObjects(String bucketName) {
     var s3Client = bucketConf.getS3Client();

@@ -15,11 +15,10 @@ import app.bpartners.geojobs.repository.model.ParcelTask;
 import app.bpartners.geojobs.repository.model.detection.Detection;
 import app.bpartners.geojobs.repository.model.tiling.ParcelTilingTask;
 import app.bpartners.geojobs.repository.model.tiling.ZoneTilingJob;
-import app.bpartners.geojobs.service.DetectionProvidedZoneUnifier;
+import app.bpartners.geojobs.service.DetectionZoneToProcessProvider;
 import app.bpartners.geojobs.service.ParcelService;
 import app.bpartners.geojobs.service.TilePolygonRetriever;
 import app.bpartners.geojobs.service.geojson.GeometryConverter;
-import app.bpartners.geojobs.service.tiling.TileFinder;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
@@ -35,8 +34,7 @@ public class ZoneTilingJobMapper {
   private final StatusMapper<JobStatus> statusMapper;
   private final ZoomMapper zoomMapper;
   private final GeometryConverter geometryConverter;
-  private final DetectionProvidedZoneUnifier detectionProvidedZoneUnifier;
-  private final TileFinder tileFinder;
+  private final DetectionZoneToProcessProvider detectionZoneToProcessProvider;
   private final TilePolygonRetriever tilePolygonRetriever;
 
   public ZoneTilingJob toDomain(CreateZoneTilingJob rest, Boolean isSynchronous) {
@@ -150,7 +148,7 @@ public class ZoneTilingJobMapper {
           "Unsupported geometry type to retrieve final geo json zone " + geometryInstance);
     }
 
-    var zoneToProcess = detectionProvidedZoneUnifier.apply(detection);
+    var zoneToProcess = detectionZoneToProcessProvider.apply(detection);
     var finalGeoJsonZone = new ArrayList<Feature>();
     for (int i = 0; i < zoneToProcess.getNumGeometries(); i++) {
       var geometry = zoneToProcess.getGeometryN(i);

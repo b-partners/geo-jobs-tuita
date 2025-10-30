@@ -11,7 +11,7 @@ import lombok.*;
 import org.hibernate.annotations.JdbcTypeCode;
 
 @Data
-@Builder
+@Builder(toBuilder = true)
 @AllArgsConstructor
 @NoArgsConstructor
 @Entity(name = "community_used_surface")

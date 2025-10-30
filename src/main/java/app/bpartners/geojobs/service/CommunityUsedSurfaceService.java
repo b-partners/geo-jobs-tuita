@@ -32,6 +32,7 @@ public class CommunityUsedSurfaceService {
   private final DetectionRepository detectionRepository;
   private static final double DEFAULT_USED_SURFACE_VALUE = 0.0;
   private final DetectionAreaComputer detectionAreaComputer;
+  private final GeometryAreaConverter geometryAreaConverter;
 
   public Optional<CommunityUsedSurface> getTotalUsedSurfaceByCommunityId(
       String communityId, SurfaceUnit unit) {
@@ -104,8 +105,11 @@ public class CommunityUsedSurfaceService {
     if (communityUsedSurface.getUnit().equals(unit)) {
       return communityUsedSurface;
     }
-    // TODO : convert SQUARE_DEGREE to SQUARE_METER
-    return communityUsedSurface;
+
+    var convertedArea =
+        geometryAreaConverter.apply(
+            communityUsedSurface.getUsedSurface(), communityUsedSurface.getUnit(), unit);
+    return communityUsedSurface.toBuilder().usedSurface(convertedArea).unit(unit).build();
   }
 
   @Transactional

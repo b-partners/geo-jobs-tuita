@@ -7,7 +7,9 @@ import app.bpartners.geojobs.job.service.TaskStatusService;
 import app.bpartners.geojobs.service.TaskConsumer;
 import java.util.function.Consumer;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 
+@Slf4j
 @RequiredArgsConstructor
 public class TaskCreatedService<T extends Task, C extends TaskCreated<T>> implements Consumer<C> {
   private static final int MAX_ATTEMPT_NB = 5;
@@ -26,6 +28,7 @@ public class TaskCreatedService<T extends Task, C extends TaskCreated<T>> implem
     }
 
     if (newAttemptNb > MAX_ATTEMPT_NB) {
+      log.info("Task [{} - id={}] reached attempt {}/{}", task, task.getId(), newAttemptNb, MAX_ATTEMPT_NB);
       fail(task);
       return;
     }

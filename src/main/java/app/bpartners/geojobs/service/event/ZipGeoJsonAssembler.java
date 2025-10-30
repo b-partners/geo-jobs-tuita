@@ -21,8 +21,8 @@ import app.bpartners.geojobs.repository.model.detection.FeatureWithDelimitation;
 import app.bpartners.geojobs.repository.model.geojson.GeoJsonConversionJob;
 import app.bpartners.geojobs.repository.model.geojson.GeoJsonConversionTask;
 import app.bpartners.geojobs.service.DetectionBackgroundRetriever;
-import app.bpartners.geojobs.service.DetectionProvidedZoneUnifier;
 import app.bpartners.geojobs.service.DetectionService;
+import app.bpartners.geojobs.service.DetectionZoneToProcessProvider;
 import app.bpartners.geojobs.service.GeoFeatureConverter;
 import app.bpartners.geojobs.service.detection.ZoneDetectionJobService;
 import app.bpartners.geojobs.service.geojson.GeoJson;
@@ -54,7 +54,7 @@ public class ZipGeoJsonAssembler implements Consumer<GeoJsonConversionJob> {
   private final DetectionService detectionService;
   private final EventProducer eventProducer;
   private final GeoFeatureConverter geoFeatureConverter;
-  private final DetectionProvidedZoneUnifier detectionProvidedZoneUnifier;
+  private final DetectionZoneToProcessProvider detectionProvidedZoneUnifier;
   private final GeometryConverter geometryConverter;
   private final DetectionBackgroundRetriever detectionBackgroundRetriever;
 

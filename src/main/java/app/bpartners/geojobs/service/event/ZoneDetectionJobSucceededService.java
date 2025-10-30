@@ -3,7 +3,7 @@ package app.bpartners.geojobs.service.event;
 import static java.util.UUID.randomUUID;
 
 import app.bpartners.geojobs.endpoint.event.EventProducer;
-import app.bpartners.geojobs.endpoint.event.model.ZoneVggRequested;
+import app.bpartners.geojobs.endpoint.event.model.FeatureVggRequested;
 import app.bpartners.geojobs.endpoint.event.model.annotation.AnnotationDeliveryJobRequested;
 import app.bpartners.geojobs.endpoint.event.model.zone.ZoneDetectionJobSucceeded;
 import app.bpartners.geojobs.repository.AnnotationDeliveryConfigurationRepository;
@@ -86,10 +86,12 @@ public class ZoneDetectionJobSucceededService implements Consumer<ZoneDetectionJ
     }
 
     if (zoneDetectionJobService.countInDoubtDetectedTileToDeliveryById(succeededJobId) == 0L) {
-      if (detection != null
-          && detection.needsImageOutput()
-          && detection.getPolygonGeoJsonZone() != null) {
-        eventProducer.accept(List.of(new ZoneVggRequested(detection.getId())));
+      if (detection != null && detection.needsImageOutput()) {
+        var providedGeoJsonZone = detection.getProvidedGeoJsonZone();
+        for (int i = 0; i < providedGeoJsonZone.size(); i++) {
+          eventProducer.accept(
+              List.of(new FeatureVggRequested(detection.getId(), providedGeoJsonZone.get(i), i)));
+        }
       }
       geoJsonConversionJobService.getOrComputeGeoJsonConversionJob(succeededZoneDetectionJob);
       return;

@@ -7,14 +7,11 @@ import static app.bpartners.geojobs.model.geometry.GeometryFactory.geometryFacto
 import static app.bpartners.geojobs.repository.model.detection.DetectableType.MOISISSURE_COULEUR;
 import static java.util.UUID.randomUUID;
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
-import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.*;
 
-import app.bpartners.geojobs.endpoint.event.EventProducer;
-import app.bpartners.geojobs.endpoint.event.model.GeoJsonConversionProcessSucceeded;
-import app.bpartners.geojobs.endpoint.event.model.ZoneVggRequested;
+import app.bpartners.geojobs.endpoint.event.model.FeatureVggRequested;
 import app.bpartners.geojobs.endpoint.rest.controller.mapper.FeatureMapper;
 import app.bpartners.geojobs.endpoint.rest.model.TileCoordinates;
 import app.bpartners.geojobs.model.geometry.PolygonObjectType;
@@ -34,17 +31,16 @@ import app.bpartners.geojobs.service.DetectionVGGUpdate;
 import app.bpartners.geojobs.service.PolygonCoordinatesCloser;
 import app.bpartners.geojobs.service.TileCoordinatesPolygonIntersection;
 import app.bpartners.geojobs.service.geojson.GeometryConverter;
+import app.bpartners.geojobs.service.tiling.TileFinder;
 import java.math.BigDecimal;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import org.jetbrains.annotations.NotNull;
-import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.locationtech.jts.geom.*;
-import org.mockito.ArgumentCaptor;
 
-class ZoneVggRequestedServiceTest {
+class FeatureVggRequestedServiceTest {
   DetectionRepository detectionRepositoryMock = mock();
   MachineDetectedTileRepository detectedTileRepositoryMock = mock();
   VGGFactory vggFactoryMock = mock();
@@ -55,27 +51,20 @@ class ZoneVggRequestedServiceTest {
   TileCoordinatesPolygonIntersection tileCoordinatesPolygonIntersectionMock = mock();
   FeatureMapper featureMapperMock = mock();
   DetectionRoofPropertiesRequestedService detectionRoofPropertiesRequestedServiceMock = mock();
-  EventProducer eventProducerMock = mock();
+  TileFinder tileFinderMock = mock();
 
-  ZoneVggRequestedService subject =
-      new ZoneVggRequestedService(
+  FeatureVggRequestedService subject =
+      new FeatureVggRequestedService(
           detectionRepositoryMock,
           detectedTileRepositoryMock,
           vggFactoryMock,
           geometryConverterMock,
-          tilingTaskRepositoryMock,
           detectionVGGUpdateMock,
           polygonCoordinatesCloser,
           tileCoordinatesPolygonIntersectionMock,
           featureMapperMock,
           detectionRoofPropertiesRequestedServiceMock,
-          eventProducerMock);
-
-  @BeforeEach
-  void setUp() {
-    when(detectionRoofPropertiesRequestedServiceMock.apply(any(), any()))
-        .thenAnswer(invocationOnMock -> invocationOnMock.getArgument(0));
-  }
+          tileFinderMock);
 
   @Test
   void compute_vgg_for_zone_and_update_detection_vgg() {
@@ -94,26 +83,20 @@ class ZoneVggRequestedServiceTest {
                     POLYGON,
                     "{\"type\":\"Polygon\",\"coordinates\":[[[0.0,5],[5,5],[5,0.0],[0.0,0.0]]]}"))
             .build();
+    int featureNb = 0;
+    var featureWithDelimitation = getFeatureWithDelimitation(polygonGeoJsonZoneFeature);
     Map<app.bpartners.geojobs.endpoint.rest.model.Feature, VGG> vggMapMock = mock();
     List<VGG> vggCollectionMock = List.of(mock(VGG.class));
 
     when(vggMapMock.values()).thenReturn(vggCollectionMock);
+    when(detectionMock.getId()).thenReturn(detectionIdentifier);
+    when(detectionMock.hasToitureModelName()).thenReturn(true);
     when(detectionMock.getZdjId()).thenReturn(zoneDetectionJobIdentifier);
     when(detectionMock.getZtjId()).thenReturn(zoneTilingJobIdentifier);
-    when(detectionMock.getPolygonGeoJsonZone())
-        .thenReturn(toRestFeature(polygonGeoJsonZoneFeature));
-    when(detectionMock.getFeatureWithDelimitations())
-        .thenReturn(
-            List.of(
-                new FeatureWithDelimitation(
-                    polygonGeoJsonZoneFeature,
-                    List.of(
-                        Feature.builder()
-                            .geometry(
-                                new Feature.FeatureGeometry(
-                                    MULTI_POLYGON,
-                                    "{\"type\":\"MultiPolygon\",\"coordinates\":[[[[0.0,10],[10,10],[10,0.0],[0.0,0.0],[0.0,10]]]]}"))
-                            .build()))));
+    when(detectionMock.getFeatureWithDelimitations()).thenReturn(List.of(featureWithDelimitation));
+    when(detectionRoofPropertiesRequestedServiceMock.applyRoofPropertiesOnDelimitation(
+            anyList(), any(FeatureWithDelimitation.class)))
+        .thenReturn(featureWithDelimitation);
     when(detectionRepositoryMock.findById(detectionIdentifier))
         .thenReturn(Optional.of(detectionMock));
     when(tilingTaskRepositoryMock.findAllByJobId(zoneTilingJobIdentifier))
@@ -174,16 +157,27 @@ class ZoneVggRequestedServiceTest {
     when(detectionVGGUpdateMock.apply(vggCollectionMock, detectionMock)).thenReturn(detectionMock);
     when(detectionRepositoryMock.save(detectionMock)).thenReturn(detectionMock);
 
-    assertDoesNotThrow(() -> subject.accept(new ZoneVggRequested(detectionIdentifier)));
+    assertDoesNotThrow(
+        () ->
+            subject.accept(
+                new FeatureVggRequested(
+                    detectionIdentifier, toRestFeature(polygonGeoJsonZoneFeature), featureNb)));
 
-    verify(detectionVGGUpdateMock, times(1)).apply(vggCollectionMock, detectionMock);
-    var listCaptor = ArgumentCaptor.forClass(List.class);
-    verify(eventProducerMock, times(1)).accept(listCaptor.capture());
-    var geoJsonConversionProcessSucceeded =
-        (GeoJsonConversionProcessSucceeded) listCaptor.getValue().getFirst();
-    assertEquals(
-        new GeoJsonConversionProcessSucceeded(detectionMock), geoJsonConversionProcessSucceeded);
+    verify(detectionVGGUpdateMock, times(1)).apply(vggCollectionMock, detectionMock, featureNb);
     // TODO: add more assertions
+  }
+
+  private static @NotNull FeatureWithDelimitation getFeatureWithDelimitation(
+      Feature polygonGeoJsonZoneFeature) {
+    return new FeatureWithDelimitation(
+        polygonGeoJsonZoneFeature,
+        List.of(
+            Feature.builder()
+                .geometry(
+                    new Feature.FeatureGeometry(
+                        MULTI_POLYGON,
+                        "{\"type\":\"MultiPolygon\",\"coordinates\":[[[[0.0,10],[10,10],[10,0.0],[0.0,0.0],[0.0,10]]]]}"))
+                .build()));
   }
 
   private @NotNull List<TiledPixelPolygon> expectedTiledPixelPolygon(

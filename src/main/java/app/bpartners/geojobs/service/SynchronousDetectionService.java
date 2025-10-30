@@ -6,16 +6,15 @@ import static app.bpartners.geojobs.job.model.Status.ProgressionStatus.FINISHED;
 import static java.util.UUID.randomUUID;
 
 import app.bpartners.geojobs.concurrency.Workers;
-import app.bpartners.geojobs.endpoint.event.EventProducer;
-import app.bpartners.geojobs.endpoint.event.model.ZoneImageRequested;
-import app.bpartners.geojobs.endpoint.event.model.ZoneVggRequested;
+import app.bpartners.geojobs.endpoint.event.model.FeatureImageRequested;
+import app.bpartners.geojobs.endpoint.event.model.FeatureVggRequested;
 import app.bpartners.geojobs.endpoint.rest.mapper.DetectionFromStatisticRestMapper;
 import app.bpartners.geojobs.endpoint.rest.model.*;
 import app.bpartners.geojobs.repository.DetectableObjectConfigurationRepository;
 import app.bpartners.geojobs.repository.DetectionRepository;
 import app.bpartners.geojobs.service.detection.*;
-import app.bpartners.geojobs.service.event.ZoneImageRequestedService;
-import app.bpartners.geojobs.service.event.ZoneVggRequestedService;
+import app.bpartners.geojobs.service.event.FeatureImageRequestedService;
+import app.bpartners.geojobs.service.event.FeatureVggRequestedService;
 import app.bpartners.geojobs.service.geojson.GeoJsonConversionJobService;
 import app.bpartners.geojobs.service.tiling.ZoneTilingJobService;
 import jakarta.persistence.EntityManager;
@@ -41,13 +40,12 @@ public class SynchronousDetectionService
   private final ZoneTilingJobService zoneTilingJobService;
   private final DetectionMachineDetectionCreation detectionMachineDetectionCreation;
   private final DetectionDelimitationRetriever detectionDelimitationRetriever;
-  private final ZoneVggRequestedService zoneVggRequestedService;
+  private final FeatureVggRequestedService zoneVggRequestedService;
   private final GeoJsonConversionJobService geoJsonConversionJobService;
   private final ZoneDetectionJobService zoneDetectionJobService;
   private final Workers workers;
   private final DetectableObjectConfigurationRepository detectableObjectConfigurationRepository;
-  private final ZoneImageRequestedService zoneImageRequestedService;
-  private final EventProducer eventProducer;
+  private final FeatureImageRequestedService featureImageRequestedService;
   private final EntityManager entityManager;
 
   @SneakyThrows
@@ -78,7 +76,8 @@ public class SynchronousDetectionService
 
     Callable<Void> imageRequestCallableVoidList =
         () -> {
-          zoneImageRequestedService.accept(new ZoneImageRequested(detection.getId()));
+          featureImageRequestedService.accept(
+              new FeatureImageRequested(detection.getId(), detection.getPolygonGeoJsonZone(), 0));
           return null;
         };
     Callable<Void> machineDetectionProcessCallableVoidList =
@@ -97,7 +96,8 @@ public class SynchronousDetectionService
         List.of(
             () -> {
               // VGG result computing step
-              zoneVggRequestedService.accept(new ZoneVggRequested(detection.getId()));
+              zoneVggRequestedService.accept(
+                  new FeatureVggRequested(detection.getId(), detection.getPolygonGeoJsonZone(), 0));
               return null;
             },
             () -> {

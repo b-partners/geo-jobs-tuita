@@ -1905,6 +1905,8 @@ components:
           type: string
         imageUrl:
           type: string
+        imageTileInfoOrigin:
+          $ref: '#/components/schemas/TileInfo'
         pdfUrl:
           type: string
         vggUrl:

@@ -45,7 +45,7 @@ class ZipGeoJsonAssemblerTest {
   DetectionService detectionServiceMock = mock();
   EventProducer eventProducerMock = mock();
   GeoFeatureConverter geoFeatureConverter = new GeoFeatureConverter(new ObjectMapper());
-  DetectionProvidedZoneUnifier detectionProvidedZoneUnifierMock = mock();
+  DetectionZoneToProcessProvider detectionProvidedZoneUnifierMock = mock();
   GeometryConverter geometryConverter = new GeometryConverter(mock(BuildingApi.class));
   DetectionBackgroundRetriever detectionBackgroundRetrieverMock = mock();
   ZipGeoJsonAssembler subject =

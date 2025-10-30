@@ -8,7 +8,7 @@ import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.*;
 
 import app.bpartners.geojobs.endpoint.event.EventProducer;
-import app.bpartners.geojobs.endpoint.event.model.ZoneVggRequested;
+import app.bpartners.geojobs.endpoint.event.model.FeatureVggRequested;
 import app.bpartners.geojobs.endpoint.event.model.annotation.AnnotationDeliveryJobRequested;
 import app.bpartners.geojobs.endpoint.event.model.zone.ZoneDetectionJobSucceeded;
 import app.bpartners.geojobs.endpoint.rest.model.DetectableObjectModel;
@@ -237,6 +237,7 @@ class ZoneDetectionJobSucceededServiceTest {
     var detectionMock = mock(Detection.class);
     when(detectionMock.getId()).thenReturn(detectionId);
     when(detectionMock.needsImageOutput()).thenReturn(true);
+    when(detectionMock.getProvidedGeoJsonZone()).thenReturn(List.of(new Feature()));
     when(detectionMock.getPolygonGeoJsonZone()).thenReturn(new Feature());
     when(zoneDetectionJobServiceMock.countInDoubtDetectedTileToDeliveryById(succeededJobId))
         .thenReturn(0L);
@@ -254,12 +255,13 @@ class ZoneDetectionJobSucceededServiceTest {
     verify(configurationRepositoryMock, never()).findLatestConfiguration();
     var listCaptor = ArgumentCaptor.forClass(List.class);
     verify(eventProducerMock, times(1)).accept(listCaptor.capture());
-    var actualZoneVggRequested = (ZoneVggRequested) listCaptor.getAllValues().getLast().getFirst();
-    assertEquals(new ZoneVggRequested(detectionId), actualZoneVggRequested);
-    assertEquals(EVENT_STACK_4, actualZoneVggRequested.getEventStack());
-    assertEquals(Duration.ofSeconds(30L), actualZoneVggRequested.maxConsumerDuration());
+    var actualFeatureVggRequested =
+        (FeatureVggRequested) listCaptor.getAllValues().getLast().getFirst();
+    assertEquals(new FeatureVggRequested(detectionId, new Feature(), 0), actualFeatureVggRequested);
+    assertEquals(EVENT_STACK_4, actualFeatureVggRequested.getEventStack());
+    assertEquals(Duration.ofSeconds(30L), actualFeatureVggRequested.maxConsumerDuration());
     assertEquals(
-        Duration.ofSeconds(30L), actualZoneVggRequested.maxConsumerBackoffBetweenRetries());
+        Duration.ofSeconds(30L), actualFeatureVggRequested.maxConsumerBackoffBetweenRetries());
   }
 
   private String expectedEmailContainingDetectionWhenNoResultRetrieved(String detectionE2Id) {

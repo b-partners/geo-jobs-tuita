@@ -3,17 +3,25 @@ package app.bpartners.geojobs.endpoint.event.model;
 import static app.bpartners.geojobs.endpoint.event.EventStack.EVENT_STACK_2;
 
 import app.bpartners.geojobs.endpoint.event.EventStack;
+import app.bpartners.geojobs.endpoint.rest.model.Feature;
 import java.time.Duration;
 import lombok.*;
 
 @NoArgsConstructor
-@AllArgsConstructor
 @Builder(toBuilder = true)
 @Data
 @EqualsAndHashCode(callSuper = false)
 @ToString
-public class ZoneImageRequested extends PojaEvent {
+public class FeatureImageRequested extends PojaEvent {
   private String detectionIdentifier;
+  private Feature feature;
+  private int featureNb = 0;
+
+  public FeatureImageRequested(String detectionIdentifier, Feature feature, int featureNb) {
+    this.detectionIdentifier = detectionIdentifier;
+    this.feature = feature;
+    this.featureNb = featureNb;
+  }
 
   @Override
   public Duration maxConsumerDuration() {

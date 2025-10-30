@@ -29,7 +29,7 @@ import org.testcontainers.shaded.com.fasterxml.jackson.databind.ObjectMapper;
 
 class TileImageBlurTest {
   GeometryConverter geometryConverter = new GeometryConverter(null);
-  DetectionProvidedZoneUnifier providedZoneUnifierMock = mock();
+  DetectionZoneToProcessProvider providedZoneUnifierMock = mock();
   DetectionBackgroundRetriever detectionBackgroundRetrieverMock =
       new DetectionBackgroundRetriever(providedZoneUnifierMock, geometryConverter);
   GeometryPixelProjector geometryPixelProjector = new GeometryPixelProjector();

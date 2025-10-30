@@ -4,7 +4,7 @@ import static app.bpartners.geojobs.service.lidar.model.LidarDataStatus.AVAILABL
 import static java.util.stream.Collectors.toSet;
 
 import app.bpartners.geojobs.endpoint.event.model.DetectionRoofSlopeAndHeightRequested;
-import app.bpartners.geojobs.endpoint.event.model.ZoneVggRequested;
+import app.bpartners.geojobs.endpoint.event.model.FeatureVggRequested;
 import app.bpartners.geojobs.endpoint.rest.controller.mapper.FeatureMapper;
 import app.bpartners.geojobs.repository.DetectionRepository;
 import app.bpartners.geojobs.repository.model.Feature;
@@ -34,7 +34,7 @@ public class DetectionRoofSlopeAndHeightRequestedService
   private final LidarRoofsAnalysisProcessor lidarRoofsAnalysisProcessor;
   private final FeatureMapper featureMapper;
   private final EntityManager entityManager;
-  private final ZoneVggRequestedService zoneVggRequestedService;
+  private final FeatureVggRequestedService zoneVggRequestedService;
 
   @Override
   public void accept(DetectionRoofSlopeAndHeightRequested requested) {
@@ -69,7 +69,8 @@ public class DetectionRoofSlopeAndHeightRequestedService
             .featureWithDelimitations(featuresWithDelimitationsWithRoofProperties)
             .build());
 
-    zoneVggRequestedService.accept(new ZoneVggRequested(detection.getId()));
+    zoneVggRequestedService.accept(
+        new FeatureVggRequested(detection.getId(), detection.getPolygonGeoJsonZone(), 0));
   }
 
   private boolean isAlreadyProcessedAsSuccess(

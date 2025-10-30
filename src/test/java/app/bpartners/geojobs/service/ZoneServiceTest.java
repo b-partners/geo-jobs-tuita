@@ -137,6 +137,7 @@ class ZoneServiceTest {
       mock(DetectionVggAttributeRetriever.class);
   RoofDelimiterMapper roofDelimiterMapper = mock();
   GeoJsonDelimitationTypeMapper geoJsonDelimitationTypeMapper = mock();
+  DetectionImageTileInfoOriginRetriever imageTileInfoOriginRetrieverMock = mock();
   DetectionFromStatisticRestMapper detectionFromStatisticRestMapperMock =
       new DetectionFromStatisticRestMapper(
           new DetectionFromStepMapper(
@@ -145,7 +146,8 @@ class ZoneServiceTest {
               imageAttributeRetrieverMock,
               vggAttributeRetrieverMock,
               new DetectionStepMapper(),
-              roofDelimiterMapper),
+              roofDelimiterMapper,
+              imageTileInfoOriginRetrieverMock),
           stepStatisticMapper);
   FeatureMapper featureMapperMock = mock();
   DetectionTilingStatisticsComputer detectionTilingStatisticsComputerMock =
@@ -214,10 +216,8 @@ class ZoneServiceTest {
               detectableObjectTypeMapper,
               featureTypeChecker,
               communityAuthRepositoryMock,
-              featureConverterMock,
               areaPictureApiMock,
               geoServerConfiguration,
-              tileMultiPolygonFrameMock,
               geoJsonDelimitationTypeMapper),
           fileWriterMock,
           mailerMock,
@@ -240,6 +240,7 @@ class ZoneServiceTest {
     when(featureMapperMock.toDomainPolygon(any())).thenReturn(geometryFactory.createPolygon());
     when(featureMapperMock.toRest(any(), any(Integer.class), any()))
         .thenReturn(featureCreator.defaultFeatures().getFirst());
+    when(imageTileInfoOriginRetrieverMock.apply(any())).thenReturn(null);
 
     var areaPictureMapLayerMock = mock(AreaPictureMapLayer.class);
     when(areaPictureMapLayerMock.name()).thenReturn(LATEST_DEFAULT_LAYER);
