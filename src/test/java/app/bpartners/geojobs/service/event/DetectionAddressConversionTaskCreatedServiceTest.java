@@ -29,13 +29,10 @@ class DetectionAddressConversionTaskCreatedServiceTest {
   @Test
   void consumes_task_and_succeeded_event_with_first_attempt() {
     var taskMock = mock(DetectionAddressConversionTask.class);
-    var e2ApiKey = randomUUID().toString();
     var detectionAddressConversionTaskCreated = mock(DetectionAddressConversionTaskCreated.class);
     int attemptNb = 1;
-    when(taskMock.getE2ApiKey()).thenReturn(e2ApiKey);
     when(detectionAddressConversionTaskCreated.getAttemptNb()).thenReturn(attemptNb);
     when(detectionAddressConversionTaskCreated.getTask()).thenReturn(taskMock);
-    when(detectionAddressConversionTaskCreated.getE2ApiKey()).thenReturn(e2ApiKey);
     doNothing().when(taskConsumerMock).accept(taskMock);
 
     assertDoesNotThrow(() -> subject.accept(detectionAddressConversionTaskCreated));
@@ -49,13 +46,10 @@ class DetectionAddressConversionTaskCreatedServiceTest {
   @Test
   void consumes_task_and_succeeded_event_with_attempt_less_than_max_attempts() {
     var taskMock = mock(DetectionAddressConversionTask.class);
-    var e2ApiKey = randomUUID().toString();
     var detectionAddressConversionTaskCreated = mock(DetectionAddressConversionTaskCreated.class);
     int attemptNb = 3;
-    when(taskMock.getE2ApiKey()).thenReturn(e2ApiKey);
     when(detectionAddressConversionTaskCreated.getAttemptNb()).thenReturn(attemptNb);
     when(detectionAddressConversionTaskCreated.getTask()).thenReturn(taskMock);
-    when(detectionAddressConversionTaskCreated.getE2ApiKey()).thenReturn(e2ApiKey);
     doNothing().when(taskConsumerMock).accept(taskMock);
 
     assertDoesNotThrow(() -> subject.accept(detectionAddressConversionTaskCreated));
@@ -72,14 +66,9 @@ class DetectionAddressConversionTaskCreatedServiceTest {
     var attemptNb = 1;
     var detectionAddressConversionTaskCreatedMock =
         mock(DetectionAddressConversionTaskCreated.class);
-    var task =
-        DetectionAddressConversionTask.builder()
-            .e2ApiKey(e2ApiKey)
-            .address("My bad address")
-            .build();
+    var task = DetectionAddressConversionTask.builder().address("My bad address").build();
     when(detectionAddressConversionTaskCreatedMock.getAttemptNb()).thenReturn(attemptNb);
     when(detectionAddressConversionTaskCreatedMock.getTask()).thenReturn(task);
-    when(detectionAddressConversionTaskCreatedMock.getE2ApiKey()).thenReturn(e2ApiKey);
     doThrow(
             HttpServerErrorException.create(
                 INTERNAL_SERVER_ERROR,
@@ -110,18 +99,12 @@ class DetectionAddressConversionTaskCreatedServiceTest {
 
   @Test
   void consumes_task_with_unknown_500_api_exception_rethrows_exception() {
-    var e2ApiKey = randomUUID().toString();
     var attemptNb = 1;
     var detectionAddressConversionTaskCreatedMock =
         mock(DetectionAddressConversionTaskCreated.class);
-    var task =
-        DetectionAddressConversionTask.builder()
-            .e2ApiKey(e2ApiKey)
-            .address("My bad address")
-            .build();
+    var task = DetectionAddressConversionTask.builder().address("My bad address").build();
     when(detectionAddressConversionTaskCreatedMock.getAttemptNb()).thenReturn(attemptNb);
     when(detectionAddressConversionTaskCreatedMock.getTask()).thenReturn(task);
-    when(detectionAddressConversionTaskCreatedMock.getE2ApiKey()).thenReturn(e2ApiKey);
     doThrow(
             HttpServerErrorException.create(
                 INTERNAL_SERVER_ERROR,
@@ -152,14 +135,11 @@ class DetectionAddressConversionTaskCreatedServiceTest {
   @Test
   void max_attempt_nb_reached_and_fail_event() {
     var taskMock = mock(DetectionAddressConversionTask.class);
-    var e2ApiKey = randomUUID().toString();
     var detectionAddressConversionTaskCreatedMock =
         mock(DetectionAddressConversionTaskCreated.class);
     var attemptNb = 6;
-    when(taskMock.getE2ApiKey()).thenReturn(e2ApiKey);
     when(detectionAddressConversionTaskCreatedMock.getAttemptNb()).thenReturn(attemptNb);
     when(detectionAddressConversionTaskCreatedMock.getTask()).thenReturn(taskMock);
-    when(detectionAddressConversionTaskCreatedMock.getE2ApiKey()).thenReturn(e2ApiKey);
     doNothing().when(taskConsumerMock).accept(taskMock);
 
     assertDoesNotThrow(() -> subject.accept(detectionAddressConversionTaskCreatedMock));

@@ -36,7 +36,7 @@ jobs:
           http_code=$(curl -s -w "%{http_code}" -X POST "$API_URL/detections/$detection_e2_id" \
           -H "Content-Type: application/json" \
           -H "x-api-key: $API_KEY" \
-          --data "@.github/workflows/detection-request.json" \
+          --data "@.github/workflows/detection-request-async.json" \
           -o >(tee detection-response.json))
           
           echo "HTTP Response Code: $http_code"
@@ -44,11 +44,25 @@ jobs:
           if [ "${http_code:-0}" -ne 200 ]; then
             echo "Response Body:"
               cat detection-response.json
+            incident_list=$(curl -s -X GET "https://api.instatus.com/v1/$IN_STATUS_PAGE_ID/incidents" \
+            -H "Authorization: Bearer $IN_STATUS_API_KEY")
+            incident_lines=$(echo "$incident_list" | jq -r '
+            .[]
+            | select(.status != "RESOLVED" and
+            (.name == "Internal server error"))
+            | "\(.id)|\(.name)|\(.status)"')
+            if [[ -z "$incident_lines" ]]; then
+              echo "Creating Instatus incident ..."
+              in_status_response=$(curl -s -o in-status-response.json -w "%{http_code}" \
+              -X POST https://api.instatus.com/v1/$IN_STATUS_PAGE_ID/incidents/$IN_STATUS_500_TMPL_ID \
+              -H "Authorization: Bearer $IN_STATUS_API_KEY")
+              incident_id=$(jq -r '.id' in-status-response.json)
+              echo "InStatus incident identifier: '$incident_id'"
+            fi
             exit 1
           fi
 
       - name: Send POST /detections/*/sync request
-        if: false
         run: |
           detection_sync_e2_id=$(uuidgen)
           echo "Generated detection_sync_e2_id: '$detection_sync_e2_id'"
@@ -67,6 +81,26 @@ jobs:
           if [ "${http_code:-0}" -ne 200 ]; then
             echo "Response Body:"
               cat $response_file
+            incident_list=$(curl -s -X GET "https://api.instatus.com/v1/$IN_STATUS_PAGE_ID/incidents" \
+            -H "Authorization: Bearer $IN_STATUS_API_KEY")
+            incident_lines=$(echo "$incident_list" | jq -r '
+            .[]
+            | select(.status != "RESOLVED" and
+            (.name == "Internal server error"))
+            | "\(.id)|\(.name)|\(.status)"')
+            if [[ -n "$incident_lines" ]]; then
+              while IFS='|' read -r id incident_name incident_status; do
+                echo "Incident : $incident_name ($incident_status)"
+                if [[ -z "$incident_lines" ]]; then
+                  echo "Creating Instatus incident ..."
+                  in_status_response=$(curl -s -o in-status-response.json -w "%{http_code}" \
+                  -X POST https://api.instatus.com/v1/$IN_STATUS_PAGE_ID/incidents/$IN_STATUS_500_TMPL_ID \
+                  -H "Authorization: Bearer $IN_STATUS_API_KEY")
+                  incident_id=$(jq -r '.id' in-status-response.json)
+                  echo "InStatus incident identifier: '$incident_id'"
+                fi
+              done <<< "$incident_lines"
+            fi
             exit 1
           fi
           
@@ -103,28 +137,28 @@ jobs:
             | "\(.id)|\(.name)|\(.status)"')
           
           if [[ -n "$errors" ]]; then
-            if [[ -n "$incident_lines" ]]; then
-              while IFS='|' read -r id incident_name incident_status; do
-                echo "Incident : $incident_name ($incident_status)"
-                if [ "$incident_name" != "Internal Server Error" ]; then
-                  in_status_response=$(curl -s -o in-status-response.json -w "%{http_code}" -X POST $in_status_api_url/v1/$IN_STATUS_PAGE_ID/incidents/$IN_STATUS_500_TMPL_ID \
-                  -H "Authorization: Bearer $IN_STATUS_API_KEY")
-                  incident_id=$(jq -r '.id' in-status-response.json)
-                  echo "InStatus incident identifier: '$incident_id'"
-                  exit 1
-                fi
-              done <<< "$incident_lines"
-            fi
             echo "Response contains unexpected values :"
             echo "$errors"
+            if [[ -z "$incident_lines" ]]; then
+              echo "No active 'Internal server error' incident. Creating one..."
+              in_status_response=$(curl -s -o in-status-response.json -w "%{http_code}" \
+              -X POST https://api.instatus.com/v1/$IN_STATUS_PAGE_ID/incidents/$IN_STATUS_500_TMPL_ID \
+              -H "Authorization: Bearer $IN_STATUS_API_KEY")
+          
+              incident_id=$(jq -r '.id' in-status-response.json)
+              echo "InStatus incident identifier: '$incident_id'"
+            else
+                echo "Incident already exists. Not creating another one."
+            fi
             exit 1
           else
             if [[ -n "$incident_lines" ]]; then
               while IFS='|' read -r id incident_name incident_status; do
-                if [[ "$incident_name" == "Internal server error" ]]; then
-                  curl -s -o /dev/null -X POST $in_status_api_url/v2/$IN_STATUS_PAGE_ID/incidents/"$id"/incident-updates/$IN_STATUS_RESOLVE_500_TMPL_ID \
+                if [[ "$incident_name" == *"Internal server error"* ]]; then
+                  echo "Resolving internal server error incident: $id"
+                  curl -s -o /dev/null -X POST \
+                  https://api.instatus.com/v2/$IN_STATUS_PAGE_ID/incidents/"$id"/incident-updates/$IN_STATUS_RESOLVE_500_TMPL_ID \
                   -H "Authorization: Bearer $IN_STATUS_API_KEY"
-                  echo "Resolving internal server error incident : $id"
                 fi
               done <<< "$incident_lines"
             fi

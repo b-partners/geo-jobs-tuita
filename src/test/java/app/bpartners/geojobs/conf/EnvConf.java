@@ -40,5 +40,7 @@ public class EnvConf {
         "roof.covering.detection.api.url",
         () -> "https://dyp5ye459j.execute-api.eu-west-3.amazonaws.com/Prod");
     registry.add("ign.lidar.api.url", () -> LIDAR_API_URL);
+    registry.add("google.captcha.secret", () -> "dummy");
+    registry.add("google.captcha.url", () -> "https://google.com");
   }
 }

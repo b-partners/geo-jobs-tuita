@@ -28,7 +28,12 @@ public class TaskCreatedService<T extends Task, C extends TaskCreated<T>> implem
     }
 
     if (newAttemptNb > MAX_ATTEMPT_NB) {
-      log.info("Task [{} - id={}] reached attempt {}/{}", task, task.getId(), newAttemptNb, MAX_ATTEMPT_NB);
+      log.info(
+          "Task [{} - id={}] reached attempt {}/{}",
+          task,
+          task.getId(),
+          newAttemptNb,
+          MAX_ATTEMPT_NB);
       fail(task);
       return;
     }

@@ -9,6 +9,7 @@ import app.bpartners.geojobs.endpoint.event.model.zone.ZoneTilingJobFailed;
 import app.bpartners.geojobs.endpoint.event.model.zone.ZoneTilingJobStatusChanged;
 import app.bpartners.geojobs.repository.DetectableObjectConfigurationRepository;
 import app.bpartners.geojobs.repository.DetectionRepository;
+import app.bpartners.geojobs.repository.TilingTaskRepository;
 import app.bpartners.geojobs.repository.model.tiling.ZoneTilingJob;
 import app.bpartners.geojobs.service.DetectionDelimitationRetriever;
 import app.bpartners.geojobs.service.JobFinishedMailer;
@@ -31,6 +32,7 @@ public class ZoneTilingJobStatusChangedService implements Consumer<ZoneTilingJob
   private final EventProducer eventProducer;
   private final DetectableObjectConfigurationRepository objectConfigurationRepository;
   private final DetectionDelimitationRetriever detectionDelimitationRetriever;
+  private final TilingTaskRepository tilingTaskRepository;
 
   @Override
   public void accept(ZoneTilingJobStatusChanged event) {
@@ -45,7 +47,8 @@ public class ZoneTilingJobStatusChangedService implements Consumer<ZoneTilingJob
             newJob,
             detectionRepository,
             objectConfigurationRepository,
-            detectionDelimitationRetriever);
+            detectionDelimitationRetriever,
+            tilingTaskRepository);
 
     var onFailedHandler = new onFailedJobHandler(eventProducer, newJob);
 
@@ -57,16 +60,25 @@ public class ZoneTilingJobStatusChangedService implements Consumer<ZoneTilingJob
       EventProducer eventProducer,
       JobFinishedMailer<ZoneTilingJob> tilingFinishedMailer,
       ZoneDetectionJobService zoneDetectionJobService,
-      ZoneTilingJob ztj,
+      ZoneTilingJob zoneTilingJob,
       DetectionRepository detectionRepository,
       DetectableObjectConfigurationRepository objectConfigurationRepository,
-      DetectionDelimitationRetriever detectionDelimitationRetriever)
+      DetectionDelimitationRetriever detectionDelimitationRetriever,
+      TilingTaskRepository tilingTaskRepository)
       implements Runnable {
 
     @Override
     public void run() {
-      var zdj = zoneDetectionJobService.saveZDJFromZTJ(ztj);
-      var optionalDetection = detectionRepository.findByZtjId(ztj.getId());
+      if (tilingTaskRepository.findAllByJobId(zoneTilingJob.getId()).stream()
+          .anyMatch(
+              task ->
+                  task.getTiles().stream()
+                      .anyMatch(tile -> tile.getBucketPath().contains(".xml")))) {
+        eventProducer.accept(List.of(new ZoneTilingJobFailed(zoneTilingJob)));
+        return;
+      }
+      var zdj = zoneDetectionJobService.saveZDJFromZTJ(zoneTilingJob);
+      var optionalDetection = detectionRepository.findByZtjId(zoneTilingJob.getId());
       // For now, only detection process triggers ZDJ processing
       if (optionalDetection.isPresent()) {
         var detection = optionalDetection.get();
@@ -93,8 +105,8 @@ public class ZoneTilingJobStatusChangedService implements Consumer<ZoneTilingJob
           }
         }
       }
-      tilingFinishedMailer.accept(ztj);
-      log.info("Finished, mail sent, ztj=" + ztj);
+      tilingFinishedMailer.accept(zoneTilingJob);
+      log.info("Finished, mail sent, ztj=" + zoneTilingJob);
     }
   }
 

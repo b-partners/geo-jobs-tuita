@@ -68,7 +68,8 @@ public class TileImageBlur implements BiFunction<Detection, List<Tile>, List<Til
               var tileWithoutRoofInsideTileAndZone =
                   multiPolygonFromTile.difference(roofInsideTileAndProvidedZone);
               List<List<List<IntXY>>> multiPolygonPixelCoordinates;
-              if (intersectionBetweenTileMultiPolygonAndBackground.isEmpty()) {
+              if (intersectionBetweenTileMultiPolygonAndBackground == null
+                  || intersectionBetweenTileMultiPolygonAndBackground.isEmpty()) {
                 multiPolygonPixelCoordinates = getBlurAllAreaCoordinates();
               } else {
                 var backgroundMultiPolygonPixels =

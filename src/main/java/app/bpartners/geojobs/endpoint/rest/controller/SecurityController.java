@@ -28,9 +28,14 @@ public class SecurityController {
   @PostMapping("/api/keys")
   public List<ApiKey> generateApiKeys(@RequestBody List<CreateApiKey> createApiKeys) {
     var communityAuthorizationList = apiKeyMapper.toCommunityAuthorization(createApiKeys);
-    return apiKeyService.generateApiKeys(communityAuthorizationList).stream()
+    var savedAuthorizations = apiKeyService.generateApiKeys(communityAuthorizationList);
+
+    return savedAuthorizations.stream()
         .map(
-            apiKey -> new ApiKey().key(apiKey.apiKey()).creationDatetime(apiKey.creationDatetime()))
+            authorization ->
+                new ApiKey()
+                    .key(authorization.apiKey())
+                    .creationDatetime(authorization.creationDatetime()))
         .toList();
   }
 

@@ -9,11 +9,13 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.*;
 
 import app.bpartners.gen.annotator.endpoint.rest.model.Label;
+import app.bpartners.geojobs.endpoint.event.EventProducer;
 import app.bpartners.geojobs.endpoint.event.model.annotation.AnnotationDeliveryJobStatusChanged;
 import app.bpartners.geojobs.job.model.JobStatus;
 import app.bpartners.geojobs.job.model.Status;
 import app.bpartners.geojobs.mail.Email;
 import app.bpartners.geojobs.mail.Mailer;
+import app.bpartners.geojobs.repository.DetectionRepository;
 import app.bpartners.geojobs.repository.model.annotation.AnnotationDeliveryJob;
 import app.bpartners.geojobs.repository.model.tiling.ZoneTilingJob;
 import app.bpartners.geojobs.service.StatusChangedHandler;
@@ -23,18 +25,30 @@ import app.bpartners.geojobs.utils.detection.ZoneDetectionJobCreator;
 import jakarta.mail.internet.InternetAddress;
 import java.io.File;
 import java.util.List;
+import java.util.Optional;
 import lombok.SneakyThrows;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 class AnnotationDeliveryJobStatusChangedServiceTest {
   ZoneDetectionJobCreator zoneDetectionJobCreator = new ZoneDetectionJobCreator();
-  StatusChangedHandler statusChangedHandlerMock = new StatusChangedHandler();
+  DetectionRepository detectionRepositoryMock = mock();
+  EventProducer eventProducerMock = mock();
+  StatusChangedHandler statusChangedHandlerMock =
+      new StatusChangedHandler(detectionRepositoryMock, eventProducerMock);
   AnnotationService annotationServiceMock = mock();
   ZoneDetectionJobService zoneDetectionJobServiceMock = mock();
   Mailer mailerMock = mock();
   AnnotationDeliveryJobStatusChangedService subject =
       new AnnotationDeliveryJobStatusChangedService(
           statusChangedHandlerMock, annotationServiceMock, zoneDetectionJobServiceMock, mailerMock);
+
+  @BeforeEach
+  void setUp() {
+    doNothing().when(eventProducerMock).accept(any());
+    when(detectionRepositoryMock.findByZdjId(anyString())).thenReturn(Optional.empty());
+    when(detectionRepositoryMock.findByZtjId(anyString())).thenReturn(Optional.empty());
+  }
 
   @Test
   void accept_finished_event_ok() {

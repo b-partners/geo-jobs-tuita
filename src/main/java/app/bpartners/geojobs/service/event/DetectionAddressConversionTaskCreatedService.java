@@ -35,7 +35,6 @@ public class DetectionAddressConversionTaskCreatedService
   @Override
   public void accept(DetectionAddressConversionTaskCreated event) {
     var task = event.getTask();
-    task.setE2ApiKey(event.getE2ApiKey());
     try {
       super.accept(event);
     } catch (HttpServerErrorException.InternalServerError apiException) {

@@ -12,7 +12,6 @@ import app.bpartners.geojobs.repository.DetectionRepository;
 import app.bpartners.geojobs.repository.TaskStatisticRepository;
 import app.bpartners.geojobs.repository.model.DetectionAddressConversionJob;
 import app.bpartners.geojobs.repository.model.DetectionAddressConversionTask;
-import app.bpartners.geojobs.repository.model.community.CommunityAuthorization;
 import java.util.List;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Service;
@@ -47,16 +46,9 @@ public class DetectionAddressConversionJobService
   public DetectionAddressConversionJob fireTasks(String jobId) {
     var job = findById(jobId);
     var detection = detectionRepository.findById(job.getDetectionId()).orElseThrow();
-    var e2ApiKey =
-        communityAuthorizationRepository
-            .findById(detection.getCommunityOwnerId())
-            .map(CommunityAuthorization::getApiKey)
-            .orElseThrow();
     getTasks(job)
         .forEach(
-            task ->
-                eventProducer.accept(
-                    List.of(new DetectionAddressConversionTaskCreated(task, e2ApiKey))));
+            task -> eventProducer.accept(List.of(new DetectionAddressConversionTaskCreated(task))));
 
     eventProducer.accept(
         List.of(new DetectionAddressConversionJobStatusRecomputingSubmitted(jobId)));

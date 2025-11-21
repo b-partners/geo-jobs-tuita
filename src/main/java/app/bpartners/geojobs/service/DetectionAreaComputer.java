@@ -27,6 +27,9 @@ public class DetectionAreaComputer implements Function<Detection, Double> {
   }
 
   public Double apply(List<Feature> geoJsonZone) {
+    if (geoJsonZone == null || geoJsonZone.isEmpty()) {
+      return 0.0;
+    }
     var unifiedProvidedPolygon =
         geoJsonZone.stream()
             .map(

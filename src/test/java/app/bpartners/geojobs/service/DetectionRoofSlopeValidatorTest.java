@@ -6,6 +6,7 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 import app.bpartners.geojobs.endpoint.rest.model.DetectableObjectModel;
+import app.bpartners.geojobs.model.exception.BadRequestException;
 import app.bpartners.geojobs.repository.model.detection.Detection;
 import app.bpartners.geojobs.repository.model.detection.FeatureWithDelimitation;
 import java.util.List;
@@ -35,7 +36,7 @@ class DetectionRoofSlopeValidatorTest {
     when(detectionMock.getDetectableObjectModel())
         .thenReturn(new DetectableObjectModel().modelName(null));
 
-    var actual = assertThrows(IllegalArgumentException.class, () -> subject.accept(detectionMock));
+    var actual = assertThrows(BadRequestException.class, () -> subject.accept(detectionMock));
 
     var expectedExceptionMessage =
         "Only BP_TOITURE model handle roof slope and height computing, otherwise Detection.id "
@@ -57,9 +58,9 @@ class DetectionRoofSlopeValidatorTest {
     when(detectionTwoMock.hasToitureModelName()).thenReturn(true);
     when(detectionTwoMock.getFeatureWithDelimitations()).thenReturn(List.of());
 
-    var actual = assertThrows(IllegalArgumentException.class, () -> subject.accept(detectionMock));
+    var actual = assertThrows(BadRequestException.class, () -> subject.accept(detectionMock));
     var actualCaseTwo =
-        assertThrows(IllegalArgumentException.class, () -> subject.accept(detectionTwoMock));
+        assertThrows(BadRequestException.class, () -> subject.accept(detectionTwoMock));
 
     var expectedExceptionMessage = "Roofs not retrieved yet for Detection.id ";
     assertEquals(expectedExceptionMessage + detectionIdentifier, actual.getMessage());

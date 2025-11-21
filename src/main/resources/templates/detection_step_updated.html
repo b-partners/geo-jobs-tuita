@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="fr" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Statut de votre détection</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f7f7f7;
+            margin: 0;
+            padding: 0;
+        }
+        .container {
+            background-color: #ffffff;
+            max-width: 600px;
+            margin: 30px auto;
+            padding: 24px;
+            border-radius: 10px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+        }
+        h2 {
+            color: #222;
+            margin-bottom: 12px;
+        }
+        p {
+            color: #555;
+            line-height: 1.5;
+        }
+        .info {
+            margin-top: 20px;
+        }
+        .label {
+            font-weight: bold;
+            color: #444;
+        }
+        .badge {
+            display: inline-block;
+            padding: 6px 12px;
+            border-radius: 20px;
+            font-weight: 600;
+            font-size: 14px;
+            color: #fff;
+        }
+
+        /* Couleurs logiques pour les PHASES */
+        .phase-request_accepted { background-color: #5bc0de; } /* bleu clair */
+        .phase-tiling { background-color: #f0ad4e; } /* orange */
+        .phase-machine_detection { background-color: #0275d8; } /* bleu foncé */
+        .phase-post_processing { background-color: #5cb85c; } /* vert */
+
+        /* Couleurs dynamiques pour la SANTÉ */
+        .health-succeeded { background-color: #28a745; }   /* vert */
+        .health-failed { background-color: #dc3545; }      /* rouge */
+        .health-unknown { background-color: #6c757d; }     /* gris */
+        .health-retrying { background-color: #ffc107; }    /* jaune/orangé */
+
+        .footer {
+            margin-top: 30px;
+            border-top: 1px solid #ddd;
+            padding-top: 10px;
+            font-size: 12px;
+            color: #888;
+        }
+    </style>
+</head>
+<body>
+<div class="container">
+    <p>Bonjour,</p>
+    <p>
+        Nous vous informons de l’évolution de votre détection. Voici les dernières informations connues :
+    </p>
+
+    <div class="info">
+        <p>
+            <span class="label">ID de la détection :</span>
+            <span th:text="${detection.id}"></span>
+        </p>
+
+        <p>
+            <span class="label">Phase actuelle :</span>
+            <span class="badge"
+                  th:text="${phase}"
+                  th:classappend="' phase-' + ${phase.toString().toLowerCase()}"></span>
+        </p>
+
+        <p>
+            <span class="label">Santé :</span>
+            <span class="badge"
+                  th:text="${health}"
+                  th:classappend="' health-' + ${health.toString().toLowerCase()}"></span>
+        </p>
+    </div>
+</div>
+</body>
+</html>

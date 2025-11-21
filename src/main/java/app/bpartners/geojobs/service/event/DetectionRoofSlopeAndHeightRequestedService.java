@@ -11,6 +11,7 @@ import app.bpartners.geojobs.repository.model.Feature;
 import app.bpartners.geojobs.repository.model.detection.FeatureWithDelimitation;
 import app.bpartners.geojobs.service.lidar.LidarRoofsAnalysisProcessor;
 import app.bpartners.geojobs.service.lidar.LidarRoofsAnalysisProcessor.RoofsAnalysisResult;
+import app.bpartners.geojobs.service.lidar.model.geometry.planes.Plane3D;
 import jakarta.persistence.EntityManager;
 import java.util.HashMap;
 import java.util.List;
@@ -57,7 +58,7 @@ public class DetectionRoofSlopeAndHeightRequestedService
     }
 
     var roofGeometries = toGeometries(featureWithDelimitations);
-    var roofsAnalysesResult = lidarRoofsAnalysisProcessor.apply(roofGeometries);
+    var roofsAnalysesResult = lidarRoofsAnalysisProcessor.from(roofGeometries);
     var featuresWithDelimitationsWithRoofProperties =
         addRoofProperties(featureWithDelimitations, roofsAnalysesResult);
 
@@ -107,8 +108,10 @@ public class DetectionRoofSlopeAndHeightRequestedService
         var roofProperties =
             roofsAnalysisResult.getProperties(featureMapper.domainToGeometry(delimitation));
 
-        properties.put(ROOF_SLOPE_PROPERTY_NAME, roofProperties.getSlopeInDegree());
-        properties.put(ROOF_HEIGHT_PROPERTY_NAME, roofProperties.getHeightInMeter());
+        var planes = roofProperties.getPlanes();
+        var firstPlane = planes.isEmpty() ? Plane3D.empty() : planes.getFirst();
+        properties.put(ROOF_SLOPE_PROPERTY_NAME, firstPlane.getSlopeInDegrees().getValue());
+        properties.put(ROOF_HEIGHT_PROPERTY_NAME, roofProperties.getHeightInMeters().getValue());
         properties.put(LIDAR_DATA_STATUS_PROPERTY_NAME, roofProperties.getData().status());
       }
     }

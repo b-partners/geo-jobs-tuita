@@ -11,6 +11,7 @@ import app.bpartners.geojobs.service.dashboard.component.AreaPictureMapLayer;
 import app.bpartners.geojobs.service.dashboard.component.CrupdateAreaPictureDetails;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpHeaders;
@@ -18,6 +19,7 @@ import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestTemplate;
 import org.springframework.web.util.UriComponentsBuilder;
 
+@Slf4j
 @Component
 @RequiredArgsConstructor
 public class AreaPictureApi {
@@ -41,6 +43,10 @@ public class AreaPictureApi {
       response =
           restTemplate.exchange(endpoint, PUT, requestEntity, AreaPictureDetails.class).getBody();
     } catch (Exception e) {
+      log.info(
+          "Error during converting address {} with payload {}",
+          crupdateAreaPictureDetails.address(),
+          crupdateAreaPictureDetails);
       throw new ApiException(SERVER_EXCEPTION, e);
     }
     return response;

@@ -11,6 +11,7 @@ import app.bpartners.geojobs.endpoint.rest.model.Feature;
 import app.bpartners.geojobs.endpoint.rest.model.RoofDelimiter;
 import app.bpartners.geojobs.file.bucket.BucketComponent;
 import app.bpartners.geojobs.repository.model.detection.DetectionStep;
+import app.bpartners.geojobs.repository.model.detection.FeatureWithDelimitation;
 import app.bpartners.geojobs.service.DetectionFeaturesResultImageRetriever;
 import app.bpartners.geojobs.service.DetectionImageAttributeRetriever;
 import app.bpartners.geojobs.service.DetectionImageTileInfoOriginRetriever;
@@ -21,8 +22,10 @@ import java.util.List;
 import java.util.Objects;
 import java.util.function.BiFunction;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 
+@Slf4j
 @Component
 @RequiredArgsConstructor
 public class DetectionFromStepMapper
@@ -63,6 +66,7 @@ public class DetectionFromStepMapper
         .emailReceiver(detection.getEmailReceiver())
         .zoneName(detection.getZoneName())
         .excelUrl(excelUrl)
+        .toNotify(detection.isToNotify())
         .shapeUrl(shapeUrl)
         .geoJsonZone(featuresWithHiddenProperties)
         .geoJsonUrl(geojsonUrl)
@@ -114,6 +118,16 @@ public class DetectionFromStepMapper
       }
 
       return new RoofDelimiter().polygon(polygonRoofDelimitation);
+    } else if (featureWithDelimitations.size() != 1
+        || featureWithDelimitations.stream()
+                .map(FeatureWithDelimitation::delimitations)
+                .mapToLong(List::size)
+                .sum()
+            != 1) {
+      log.warn(
+          "UnsupportedOperation: RoofDelimiter can be only computed when unique roof delimitation"
+              + " obtained");
+      return null;
     }
 
     var featureDelimitation = featureWithDelimitations.getFirst().delimitations().getFirst();

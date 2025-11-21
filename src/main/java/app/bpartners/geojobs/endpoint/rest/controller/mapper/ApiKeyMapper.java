@@ -10,6 +10,7 @@ import app.bpartners.geojobs.endpoint.rest.model.ModelName;
 import app.bpartners.geojobs.endpoint.rest.security.model.Authority;
 import app.bpartners.geojobs.endpoint.rest.validator.CreateApiKeyValidator;
 import app.bpartners.geojobs.repository.model.community.CommunityAuthorization;
+import app.bpartners.geojobs.repository.model.community.CommunityAuthorizationApiKey;
 import app.bpartners.geojobs.repository.model.community.CommunityAuthorizedZone;
 import app.bpartners.geojobs.repository.model.community.CommunityDetectableObjectType;
 import java.util.List;
@@ -39,9 +40,10 @@ public class ApiKeyMapper {
   private CommunityAuthorization toCommunityAuthorization(
       CreateApiKey createApiKey, String newCommunityId) {
     var maxSurface = createApiKey.getMaxSurface();
+    var newApiKey = randomUUID().toString();
     return CommunityAuthorization.builder()
         .id(newCommunityId)
-        .apiKey(randomUUID().toString())
+        .dashboardApiKey(newApiKey)
         .name(createApiKey.getConsumerName())
         .email(createApiKey.getConsumerEmail())
         .detectableObjectTypes(null) // deprecated
@@ -50,6 +52,13 @@ public class ApiKeyMapper {
         .maxSurfaceUnit(SQUARE_METER)
         .role(toDomain(createApiKey.getConsumerType()))
         .authorizedZones(toCommunityAuthorizedZone(createApiKey, newCommunityId))
+        .apiKeys(
+            List.of(
+                CommunityAuthorizationApiKey.builder()
+                    .id(randomUUID().toString())
+                    .communityOwnerId(newCommunityId)
+                    .keyValue(newApiKey)
+                    .build()))
         .build();
   }
 

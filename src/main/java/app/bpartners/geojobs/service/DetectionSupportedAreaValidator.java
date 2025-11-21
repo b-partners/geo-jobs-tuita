@@ -29,6 +29,9 @@ public class DetectionSupportedAreaValidator implements Consumer<Detection> {
   @Override
   public void accept(Detection detection) {
     var geoJsonZone = detection.getProvidedGeoJsonZone();
+    if (geoJsonZone == null || geoJsonZone.isEmpty()) {
+      return;
+    }
     var unifiedProvidedPolygon =
         geoJsonZone.stream()
             .map(

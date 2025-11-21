@@ -23,6 +23,9 @@ public class RevokedApiKey implements Serializable {
 
   @Column private Instant revokedAt;
 
+  @JoinColumn(referencedColumnName = "id", table = "community_authorization_api_key")
+  private String apiKeyId;
+
   @JoinColumn(referencedColumnName = "id", name = "community_owner_id")
   private String communityOwnerId;
 }

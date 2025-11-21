@@ -9,6 +9,7 @@ import app.bpartners.geojobs.file.bucket.BucketComponent;
 import app.bpartners.geojobs.mail.Email;
 import app.bpartners.geojobs.mail.Mailer;
 import app.bpartners.geojobs.repository.CommunityAuthorizationRepository;
+import app.bpartners.geojobs.repository.DetectionRepository;
 import app.bpartners.geojobs.repository.model.detection.Detection;
 import app.bpartners.geojobs.repository.model.detection.GeoServerParameterStringMapValue;
 import app.bpartners.geojobs.service.detection.DetectionGeoServerParameterModelMapper;
@@ -34,11 +35,13 @@ public class DetectionSavedService implements Consumer<DetectionSaved> {
   private final BucketComponent bucketComponent;
   private final DetectionGeoServerParameterModelMapper detectionGeoServerParameterModelMapper;
   private final CommunityAuthorizationRepository communityAuthorizationRepository;
+  private final DetectionRepository detectionRepository;
 
   @SneakyThrows
   @Override
   public void accept(DetectionSaved detectionSaved) {
-    var detection = detectionSaved.getDetection();
+    var detectionIdentifier = detectionSaved.getDetectionIdentifier();
+    var detection = detectionRepository.findById(detectionIdentifier).orElseThrow();
     List<InternetAddress> cc = List.of();
     List<InternetAddress> bcc = List.of();
     var env = System.getenv("ENV");

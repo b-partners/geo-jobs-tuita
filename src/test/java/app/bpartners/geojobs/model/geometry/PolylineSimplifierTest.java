@@ -3,30 +3,28 @@ package app.bpartners.geojobs.model.geometry;
 import static app.bpartners.geojobs.model.geometry.GeometryFactory.geometryFactory;
 import static app.bpartners.geojobs.service.GeometrySquareMeterArea.LAMBERT_93;
 import static app.bpartners.geojobs.service.GeometrySquareMeterArea.WGS84;
-import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import app.bpartners.geojobs.service.GeometrySquareMeterArea;
-import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 import org.locationtech.jts.geom.Coordinate;
 import org.locationtech.jts.geom.Polygon;
 
 class PolylineSimplifierTest {
-  private static final PolylineSimplifier subject = new PolylineSimplifier();
-  private static final GeometrySquareMeterArea projector = new GeometrySquareMeterArea();
   private static final double EPSILON = 0.2;
+  private static final PolylineSimplifier subject = new PolylineSimplifier(EPSILON);
+  private static final GeometrySquareMeterArea projector = new GeometrySquareMeterArea();
 
   @Test
-  @Disabled("TODO: flaky test on precision")
   void simplify_polygon() {
     var polygon = polygon();
     var expected = simplifiedPolygon();
 
     var lambert93Polygon = projector.project(polygon, WGS84, LAMBERT_93);
-    var lambert93Actual = subject.simplifyPolygon((Polygon) lambert93Polygon, EPSILON);
+    var lambert93Actual = subject.simplifyPolygon((Polygon) lambert93Polygon);
     var actual = projector.project(lambert93Actual, LAMBERT_93, WGS84);
 
-    assertEquals(expected, actual);
+    assertTrue(expected.equalsExact(actual, 1e-12));
   }
 
   private static Polygon polygon() {

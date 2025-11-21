@@ -54,6 +54,7 @@ public class LidarApi {
       return Optional.empty();
     }
 
+    log.info("Downloading {}", fileUrl);
     try {
       byte[] data = restTemplate.getForObject(fileUrl, byte[].class);
       if (data == null) {

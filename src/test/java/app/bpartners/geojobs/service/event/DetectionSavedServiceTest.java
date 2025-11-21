@@ -14,6 +14,7 @@ import app.bpartners.geojobs.file.bucket.BucketComponent;
 import app.bpartners.geojobs.mail.Email;
 import app.bpartners.geojobs.mail.Mailer;
 import app.bpartners.geojobs.repository.CommunityAuthorizationRepository;
+import app.bpartners.geojobs.repository.DetectionRepository;
 import app.bpartners.geojobs.repository.model.community.CommunityAuthorization;
 import app.bpartners.geojobs.repository.model.detection.Detection;
 import app.bpartners.geojobs.repository.model.detection.GeoServerParameterStringMapValue;
@@ -39,12 +40,14 @@ class DetectionSavedServiceTest {
   DetectionGeoServerParameterModelMapper detectionGeoServerParameterModelMapper =
       new DetectionGeoServerParameterModelMapper();
   CommunityAuthorizationRepository communityAuthorizationRepositoryMock = mock();
+  DetectionRepository detectionRepositoryMock = mock();
   DetectionSavedService subject =
       new DetectionSavedService(
           mailerMock,
           bucketComponentMock,
           detectionGeoServerParameterModelMapper,
-          communityAuthorizationRepositoryMock);
+          communityAuthorizationRepositoryMock,
+          detectionRepositoryMock);
 
   @BeforeEach
   void setUp() {
@@ -83,6 +86,7 @@ class DetectionSavedServiceTest {
                     .geoServerUrl("geoServerUrl")
                     .geoServerParameter(geoServerParameter))
             .build();
+    when(detectionRepositoryMock.findById(detection.getId())).thenReturn(Optional.of(detection));
     List<InternetAddress> cc = List.of();
     List<InternetAddress> bcc = List.of();
     String htmlBody =
@@ -93,7 +97,7 @@ class DetectionSavedServiceTest {
             communityAuthorizationRepositoryMock);
     List<File> attachments = List.of();
 
-    subject.accept(DetectionSaved.builder().detection(detection).build());
+    subject.accept(DetectionSaved.builder().detectionIdentifier(detection.getId()).build());
 
     var emailCaptor = ArgumentCaptor.forClass(Email.class);
     var durationCaptor = ArgumentCaptor.forClass(Duration.class);
@@ -219,6 +223,8 @@ class DetectionSavedServiceTest {
         <li>Email associé : <span></span></li>
         <li>Nom de zone fournie par le consommateur : <span></span></li>
         <li>Model utilisé pour la détection : <span>BP_TOITURE</span></li>
+        <li>A besoin d'images : <span>false</span></li>
+        <li>Format ZIP demandé : <span>false</span></li>
         <li>Configuration du geoServer :
             <ul>
                 <li>geoServerUrl: <span>geo_server_value_test</span></li>

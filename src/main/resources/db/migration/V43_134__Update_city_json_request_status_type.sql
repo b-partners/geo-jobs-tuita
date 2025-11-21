@@ -1,0 +1,1 @@
+alter type city_json_request_status add value if not exists 'UNAVAILABLE';

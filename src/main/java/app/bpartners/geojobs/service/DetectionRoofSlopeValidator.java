@@ -1,5 +1,6 @@
 package app.bpartners.geojobs.service;
 
+import app.bpartners.geojobs.model.exception.BadRequestException;
 import app.bpartners.geojobs.repository.model.detection.Detection;
 import java.util.function.Consumer;
 import org.springframework.stereotype.Component;
@@ -10,7 +11,7 @@ public class DetectionRoofSlopeValidator implements Consumer<Detection> {
   public void accept(Detection detection) {
     var detectionIdentifier = detection.getId();
     if (!detection.hasToitureModelName()) {
-      throw new IllegalArgumentException(
+      throw new BadRequestException(
           "Only BP_TOITURE model handle roof slope and height computing, "
               + "otherwise Detection.id "
               + detectionIdentifier
@@ -19,7 +20,7 @@ public class DetectionRoofSlopeValidator implements Consumer<Detection> {
     }
     if (detection.getFeatureWithDelimitations() == null
         || detection.getFeatureWithDelimitations().isEmpty()) {
-      throw new IllegalArgumentException(
+      throw new BadRequestException(
           "Roofs not retrieved yet for Detection.id " + detectionIdentifier);
     }
   }

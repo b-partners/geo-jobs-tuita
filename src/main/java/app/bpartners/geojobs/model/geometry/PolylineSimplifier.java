@@ -4,6 +4,7 @@ import static app.bpartners.geojobs.model.geometry.GeometryFactory.geometryFacto
 
 import java.util.ArrayList;
 import java.util.List;
+import lombok.RequiredArgsConstructor;
 import org.locationtech.jts.geom.Coordinate;
 import org.locationtech.jts.geom.Polygon;
 
@@ -11,8 +12,11 @@ import org.locationtech.jts.geom.Polygon;
  * Line simplification using the Ramer–Douglas–Peucker algorithm. Reference: <a
  * href="https://rosettacode.org/wiki/Ramer-Douglas-Peucker_line_simplification#Java">...</a>
  */
+@RequiredArgsConstructor
 public class PolylineSimplifier {
-  public List<Coordinate> simplifyLine(List<Coordinate> coordinates, double epsilon) {
+  private final double epsilon;
+
+  public List<Coordinate> simplifyLine(List<Coordinate> coordinates) {
     List<Coordinate> result = new ArrayList<>();
 
     ramerDouglasPeucker(coordinates, epsilon, result);
@@ -24,8 +28,8 @@ public class PolylineSimplifier {
     return List.of(polygon.getCoordinates()).subList(0, polygon.getCoordinates().length - 1);
   }
 
-  public Polygon simplifyPolygon(Polygon polygon, double epsilon) {
-    var simplifiedLine = new ArrayList<>(simplifyLine(toPolyline(polygon), epsilon));
+  public Polygon simplifyPolygon(Polygon polygon) {
+    var simplifiedLine = new ArrayList<>(simplifyLine(toPolyline(polygon)));
     simplifiedLine.add(simplifiedLine.getFirst());
 
     return geometryFactory.createPolygon(simplifiedLine.toArray(Coordinate[]::new));

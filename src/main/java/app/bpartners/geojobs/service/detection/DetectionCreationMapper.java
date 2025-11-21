@@ -65,9 +65,11 @@ public class DetectionCreationMapper {
         .multiPolygonGeoJsonZone(domainProvidedGeoJsonZone)
         .polygonGeoJsonZone(polygonGeoJsonZoneToBeProcessed)
         .detectableObjectModel(detectableObjectModel)
+        .toNotify(Boolean.TRUE.equals(createDetection.getToNotify()))
         .isOutputZipped(
-            createDetection.getGeoJsonOutput() != null
-                && ZIP.equals(createDetection.getGeoJsonOutput()))
+            createDetection.getGeoJsonOutput() == null
+                || (createDetection.getGeoJsonOutput() != null
+                    && ZIP.equals(createDetection.getGeoJsonOutput())))
         .needsImageOutput(
             createDetection.getNeedsImageOutput() != null && createDetection.getNeedsImageOutput())
         .geoJsonDelimitationType(
@@ -189,7 +191,7 @@ public class DetectionCreationMapper {
     var e2ApiKey =
         communityAuthRepository
             .findById(communityOwnerId)
-            .map(CommunityAuthorization::getApiKey)
+            .map(CommunityAuthorization::getDashboardApiKey)
             .orElseThrow();
     var areaMapLayers = areaPictureApi.getAreaPictureMapLayers(longitude, latitude, e2ApiKey);
     return areaMapLayers.stream().map(AreaPictureMapLayer::name).toList();

@@ -143,6 +143,8 @@ public class SecurityConf {
                         ROLE_ADMIN.name(), ROLE_COMMUNITY.name(), ROLE_INSURANCE.name())
                     .requestMatchers(POST, "/detections/*/sync")
                     .authenticated() // TODO: change later
+                    .requestMatchers(GET, "/captcha/token")
+                    .authenticated()
                     .requestMatchers(POST, "/detections/*/roofDelimiter")
                     .authenticated() // TODO: change later
                     .requestMatchers(POST, "/detections/*/addresses")
@@ -182,6 +184,10 @@ public class SecurityConf {
                     .hasAnyAuthority(ROLE_ADMIN.name())
                     .requestMatchers(DELETE, "/keys")
                     .hasAnyAuthority(ROLE_COMMUNITY.name(), ROLE_INSURANCE.name())
+                    .requestMatchers(GET, "/city-jsons/*")
+                    .authenticated()
+                    .requestMatchers(PUT, "/city-jsons/*/process")
+                    .authenticated()
                     .anyRequest()
                     .denyAll())
         .csrf(AbstractHttpConfigurer::disable)

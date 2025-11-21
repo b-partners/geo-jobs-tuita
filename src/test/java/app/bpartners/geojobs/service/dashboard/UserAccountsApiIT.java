@@ -28,12 +28,18 @@ class UserAccountsApiIT extends FacadeIT {
     var actual = subject.getUsersByCriteria(mail, null, null, adminApiKey);
 
     assertEquals(
-        List.of(new User("2cd412e9-fb9b-4e53-9ce7-c0cbcd877b54", "Sofiane", "Madani")), actual);
+        List.of(
+            new User(
+                "2cd412e9-fb9b-4e53-9ce7-c0cbcd877b54",
+                "Sofiane",
+                "Madani",
+                "contact@bpartners.app")),
+        actual);
   }
 
   @Test
   void update_api_key_ok() {
-    var actual = subject.updateApiKey("lou@bpartners.app", userApiKey, adminApiKey);
+    var actual = subject.getOrGenerateApiKey("lou@bpartners.app", userApiKey, adminApiKey);
 
     assertEquals(new UserApiKey(userApiKey), actual);
   }

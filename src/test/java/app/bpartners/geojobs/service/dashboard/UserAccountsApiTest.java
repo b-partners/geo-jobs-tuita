@@ -79,12 +79,14 @@ public class UserAccountsApiTest extends FacadeIT {
             any(ParameterizedTypeReference.class)))
         .thenReturn(
             new ResponseEntity(
-                List.of(new User("_user-id_", "_user-name_", "_user-surname_")), HttpStatus.OK));
+                List.of(new User("_user-id_", "_user-name_", "_user-surname_", "_user-email")),
+                HttpStatus.OK));
 
     var actual = subject.getUsersByCriteria("_user-email_", 1, 500, "_user-api-key_");
 
     assertEquals(1, actual.size());
-    assertEquals(new User("_user-id_", "_user-name_", "_user-surname_"), actual.getFirst());
+    assertEquals(
+        new User("_user-id_", "_user-name_", "_user-surname_", "_user-email"), actual.getFirst());
   }
 
   @Test
@@ -96,7 +98,8 @@ public class UserAccountsApiTest extends FacadeIT {
             any(ParameterizedTypeReference.class)))
         .thenReturn(
             new ResponseEntity(
-                List.of(new User("_user-id_", "_user-name_", "_user-surname_")), HttpStatus.OK));
+                List.of(new User("_user-id_", "_user-name_", "_user-surname_", "_user-email")),
+                HttpStatus.OK));
 
     when(mockRestTemplate.exchange(
             any(String.class),
@@ -105,7 +108,8 @@ public class UserAccountsApiTest extends FacadeIT {
             any(ParameterizedTypeReference.class)))
         .thenReturn(new ResponseEntity(new UserApiKey("_new-user-api-key_"), HttpStatus.OK));
 
-    var actual = subject.updateApiKey("_user-email_", "_new-user-api-key_", "_admin-api-key_");
+    var actual =
+        subject.getOrGenerateApiKey("_user-email_", "_new-user-api-key_", "_admin-api-key_");
 
     assertEquals("_new-user-api-key_", actual.key());
   }

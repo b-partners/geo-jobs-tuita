@@ -7,6 +7,7 @@ import app.bpartners.geojobs.endpoint.rest.model.Feature;
 import app.bpartners.geojobs.endpoint.rest.model.Point;
 import app.bpartners.geojobs.repository.model.detection.Detection;
 import app.bpartners.geojobs.service.geojson.GeometryConverter;
+import app.bpartners.geojobs.service.geometry.JtsGeoFeature;
 import java.util.List;
 import java.util.Objects;
 import java.util.function.Function;
@@ -29,6 +30,14 @@ public class DetectionZoneToProcessProvider implements Function<Detection, Multi
     }
     var providedGeoJsonZone = detection.getProvidedGeoJsonZone();
     return apply(detection.getId(), providedGeoJsonZone);
+  }
+
+  public List<JtsGeoFeature> applyInternalGeoFeatures(Detection detection) {
+    if (detection == null) {
+      return List.of();
+    }
+    var providedGeoJsonZone = detection.getProvidedGeoJsonZone();
+    return apply(providedGeoJsonZone);
   }
 
   private MultiPolygon apply(String detectionId, List<Feature> featureList) {
@@ -63,5 +72,40 @@ public class DetectionZoneToProcessProvider implements Function<Detection, Multi
             () ->
                 new IllegalArgumentException(
                     "Unable to unify provided zone for detection.id : " + detectionId));
+  }
+
+  public List<JtsGeoFeature> apply(List<Feature> featureList) {
+    if (featureList == null) {
+      return List.of();
+    }
+    if (featureList.isEmpty()) {
+      return List.of();
+    }
+    return featureList.stream()
+        .map(
+            feature -> {
+              var geometry = feature.getGeometry();
+              var properties = feature.getProperties();
+              if (geometry == null) {
+                return null;
+              }
+              var geometryType = geometry.getActualInstance();
+              return switch (geometryType) {
+                case Point point ->
+                    new JtsGeoFeature(
+                        properties, geometryConverter.retrieveNearestRoofMultiPolygon(point));
+                case app.bpartners.geojobs.endpoint.rest.model.Polygon polygon ->
+                    new JtsGeoFeature(
+                        properties, geometryConverter.apply(List.of(polygon.getCoordinates())));
+                case app.bpartners.geojobs.endpoint.rest.model.MultiPolygon multiPolygon ->
+                    new JtsGeoFeature(
+                        properties, geometryConverter.apply(multiPolygon.getCoordinates()));
+                default ->
+                    throw new UnsupportedOperationException(
+                        "Unsupported geometry type to retrieve zone to process : " + geometryType);
+              };
+            })
+        .filter(Objects::nonNull)
+        .toList();
   }
 }

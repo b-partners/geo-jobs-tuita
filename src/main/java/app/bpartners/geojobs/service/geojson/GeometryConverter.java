@@ -2,6 +2,7 @@ package app.bpartners.geojobs.service.geojson;
 
 import static app.bpartners.geojobs.endpoint.rest.model.Feature.TypeEnum.FEATURE;
 import static app.bpartners.geojobs.endpoint.rest.model.Geometry.TypeEnum.MULTI_POLYGON;
+import static app.bpartners.geojobs.endpoint.rest.model.Geometry.TypeEnum.POINT;
 import static app.bpartners.geojobs.endpoint.rest.model.Polygon.TypeEnum.POLYGON;
 
 import app.bpartners.geojobs.endpoint.rest.model.FeatureGeometry;
@@ -47,6 +48,20 @@ public class GeometryConverter {
             Feature.FeatureGeometry.builder()
                 .geometryType(MULTI_POLYGON)
                 .actualInstanceStringValue(writeMultiPolygonAsString(multiPolygon))
+                .build())
+        .properties(new HashMap<>(properties))
+        .build();
+  }
+
+  public Feature toFeature(
+      String featureId, Integer zoom, Map<String, Object> properties, Point point) {
+    return Feature.builder()
+        .id(featureId)
+        .zoom(zoom)
+        .geometry(
+            Feature.FeatureGeometry.builder()
+                .geometryType(POINT)
+                .actualInstanceStringValue(writeMultiPolygonAsString(point))
                 .build())
         .properties(new HashMap<>(properties))
         .build();
@@ -373,10 +388,10 @@ public class GeometryConverter {
   }
 
   @SneakyThrows
-  public String writeMultiPolygonAsString(MultiPolygon multiPolygon) {
+  public String writeMultiPolygonAsString(Geometry geometry) {
     GeometryJSON geometryJSON = new GeometryJSON(15);
     StringWriter writer = new StringWriter();
-    geometryJSON.write(multiPolygon, writer);
+    geometryJSON.write(geometry, writer);
     return writer.toString();
   }
 

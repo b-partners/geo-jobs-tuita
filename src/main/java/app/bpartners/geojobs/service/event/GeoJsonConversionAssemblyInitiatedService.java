@@ -74,13 +74,7 @@ public class GeoJsonConversionAssemblyInitiatedService
     }
     var conversionTasks = geoJsonConversionTaskRepository.findAllByJobId(conversionJobId);
     var geoFeaturesList = getGeoFeaturesList(conversionTasks);
-    var polygonAddressDelimitation = getPolygonAddressDelimitation(detection);
-    var geoFeaturesFilteredByAddresses =
-        filterGeoFeaturesByAddresses(geoFeaturesList, polygonAddressDelimitation);
-    var geoFeaturesFilterByPoint = filterGeoFeaturesByPoint(geoFeaturesList, detection);
-    var geoJson =
-        computeFinalGeoJson(
-            geoFeaturesList, geoFeaturesFilteredByAddresses, geoFeaturesFilterByPoint);
+    var geoJson = new GeoJson(geoFeaturesList);
     var outputFileName = zoneDetectionJob.getZoneName() + "-final" + GEO_JSON_EXTENSION;
     var geoJsonFinalFile =
         fileWriter.write(

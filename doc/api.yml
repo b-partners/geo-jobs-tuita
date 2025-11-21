@@ -1106,6 +1106,26 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/RevokeApiKeyResponse'
+  '/city-jsons':
+    put:
+      tags:
+        - CityJSON
+      operationId: requestCityJSON
+      summary: Request CityJSON files for provided roof delimitation
+      security:
+        - ApiKeyAuth: []
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateCityJSONRequest'
+      responses:
+        200:
+          description: CityJSON files urls
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CityJSONRequest'
 components:
   securitySchemes:
     ReadmeAuth:
@@ -1870,6 +1890,9 @@ components:
         needsImageOutput:
           type: boolean
           default: false
+        toNotify:
+          type: boolean
+          default: false
     DetectionStep:
       properties:
         name:
@@ -1974,6 +1997,45 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/Point2D'
+    CreateCityJSONRequest:
+      type: object
+      properties:
+        id:
+          type: string
+        delimitations:
+          type: array
+          items:
+            $ref: "#/components/schemas/Feature"
+    CityJSONRequestStatus:
+      type: string
+      x-enum-varnames:
+        - FINISHED
+        - FAILED
+        - PROCESSING
+        - UNAVAILABLE
+      enum:
+        - FINISHED
+        - FAILED
+        - PROCESSING
+        - UNAVAILABLE
+    CityJSONRequest:
+      type: object
+      allOf:
+        - $ref: '#/components/schemas/CreateCityJSONRequest'
+      properties:
+        status:
+          $ref: '#/components/schemas/CityJSONRequestStatus'
+        cityJsons:
+          type: array
+          items:
+            $ref: '#/components/schemas/CityJSON'
+    CityJSON:
+      type: object
+      properties:
+        id:
+          type: string
+        url:
+          type: string
     GeoJsonOutput:
       type: string
       description: |

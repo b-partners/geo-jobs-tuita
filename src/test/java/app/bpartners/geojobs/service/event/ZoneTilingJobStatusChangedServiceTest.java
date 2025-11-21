@@ -50,9 +50,10 @@ import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMock
 class ZoneTilingJobStatusChangedServiceTest {
   JobFinishedMailer<ZoneTilingJob> mailerMock = mock();
   ZoneDetectionJobService zoneDetectionJobServiceMock = mock();
-  StatusChangedHandler statusChangedHandler = new StatusChangedHandler();
   DetectionRepository detectionRepositoryMock = mock();
   EventProducer eventProducerMock = mock();
+  StatusChangedHandler statusChangedHandler =
+      new StatusChangedHandler(detectionRepositoryMock, eventProducerMock);
   DetectableObjectConfigurationRepository objectConfigurationRepositoryMock = mock();
   TilingTaskRepository tilingTaskRepositoryMock = mock();
   TilingTaskCreator tilingTaskCreator = new TilingTaskCreator();
@@ -65,7 +66,8 @@ class ZoneTilingJobStatusChangedServiceTest {
           detectionRepositoryMock,
           eventProducerMock,
           objectConfigurationRepositoryMock,
-          detectionDelimitationRetrieverMock);
+          detectionDelimitationRetrieverMock,
+          tilingTaskRepositoryMock);
 
   @BeforeEach
   void setUp() {
@@ -78,6 +80,9 @@ class ZoneTilingJobStatusChangedServiceTest {
                     new Parcel(),
                     FINISHED,
                     SUCCEEDED)));
+    doNothing().when(eventProducerMock).accept(anyList());
+    when(detectionRepositoryMock.findByZdjId(anyString())).thenReturn(Optional.of(new Detection()));
+    when(detectionRepositoryMock.findByZtjId(anyString())).thenReturn(Optional.of(new Detection()));
   }
 
   @Test
@@ -162,6 +167,7 @@ class ZoneTilingJobStatusChangedServiceTest {
         .thenAnswer(invocation -> invocation.getArgument(0));
     doNothing().when(detectionDelimitationRetrieverMock).accept(detection);
     doNothing().when(mailerMock).accept(any());
+    when(tilingTaskRepositoryMock.findAllByJobId(any())).thenReturn(List.of());
 
     assertDoesNotThrow(() -> subject.accept(ztjStatusChanged));
 

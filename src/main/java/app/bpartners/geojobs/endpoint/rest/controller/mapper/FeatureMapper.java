@@ -154,7 +154,9 @@ public class FeatureMapper {
   public org.locationtech.jts.geom.Geometry toDomainGeometry(Feature feature) {
     var geometryType = feature.getGeometry().getActualInstance();
     switch (geometryType) {
-      case Point ignored -> throw new NotImplementedException("Point geometry type not supported");
+      case Point point -> {
+        return geometryConverter.retrieveNearestRoofMultiPolygon(point);
+      }
       case Polygon polygon -> {
         var polygons =
             polygon.getCoordinates().stream().map(geometryConverter::convertToPolygon).toList();

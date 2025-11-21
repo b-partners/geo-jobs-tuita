@@ -99,7 +99,7 @@ public class TileDetectionTaskConsumer implements TaskConsumer<TileDetectionTask
     }
     log.info("TileDetectionTask ID=[{}] — detection started", tileDetectionTask.getId());
     var detectionResponse =
-            objectsDetector.apply(tileDetectionTask, mask, detectableObjectConfigurations);
+        objectsDetector.apply(tileDetectionTask, mask, detectableObjectConfigurations);
     log.info("TileDetectionTask ID=[{}] — detection completed", tileDetectionTask.getId());
 
     var roofCoveringResponse =

@@ -47,7 +47,7 @@ class GeoJsonConversionProcessSucceededServiceTest {
     when(detectionMock.getCommunityOwnerId()).thenReturn(communityOwnerId);
 
     when(communityAuthorizationRepositoryMock.findById(communityOwnerId))
-        .thenReturn(Optional.of(CommunityAuthorization.builder().apiKey(apiKey).build()));
+        .thenReturn(Optional.of(CommunityAuthorization.builder().dashboardApiKey(apiKey).build()));
 
     assertDoesNotThrow(() -> subject.accept(new GeoJsonConversionProcessSucceeded(detectionMock)));
 

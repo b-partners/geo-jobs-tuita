@@ -1,7 +1,6 @@
 package app.bpartners.geojobs.service;
 
 import static app.bpartners.geojobs.endpoint.rest.model.CreateApiKey.ConsumerTypeEnum.INSURANCE;
-import static app.bpartners.geojobs.endpoint.rest.model.DetectableObjectType.*;
 import static app.bpartners.geojobs.endpoint.rest.model.ModelName.TOITURE;
 import static app.bpartners.geojobs.endpoint.rest.security.model.Authority.Role.ROLE_INSURANCE;
 import static app.bpartners.geojobs.repository.model.SurfaceUnit.SQUARE_METER;
@@ -33,7 +32,7 @@ class SecurityControllerIT extends FacadeIT {
   @Transactional
   @Test
   void generate_and_read_api_keys_for_insurance_ok() {
-    when(userAccountsApiMock.updateApiKey(any(), any(), any()))
+    when(userAccountsApiMock.getOrGenerateApiKey(any(), any(), any()))
         .thenAnswer(invocationOnMock -> new UserApiKey(invocationOnMock.getArgument(1)));
     var consumerEmail = "randomEmail" + randomUUID();
 
@@ -41,11 +40,12 @@ class SecurityControllerIT extends FacadeIT {
 
     assertEquals(1, actual.size());
     var actualKey = actual.getFirst().getKey();
-    var actualCommunity = authorizationRepository.findByApiKey(actualKey).orElse(null);
+    var actualCommunity = authorizationRepository.findByDashboardApiKey(actualKey).orElse(null);
     assertEquals(
         CommunityAuthorization.builder()
             .id(actualCommunity.getId())
             .apiKey(actualKey)
+            .apiKeys(actualCommunity.getApiKeys())
             .creationDatetime(actualCommunity.getCreationDatetime())
             .name("dummyConsumerName")
             .email(consumerEmail)
@@ -53,6 +53,7 @@ class SecurityControllerIT extends FacadeIT {
             .role(ROLE_INSURANCE)
             .maxSurfaceUnit(SQUARE_METER)
             .authorizedZones(List.of())
+            .dashboardApiKey(actualKey)
             .build(),
         actualCommunity);
     assertTrue(actualCommunity.getAuthorizedZones().isEmpty());
@@ -60,7 +61,7 @@ class SecurityControllerIT extends FacadeIT {
 
   @Test
   void used_email_throws_ko() {
-    when(userAccountsApiMock.updateApiKey(any(), any(), any()))
+    when(userAccountsApiMock.getOrGenerateApiKey(any(), any(), any()))
         .thenAnswer(invocationOnMock -> new UserApiKey(invocationOnMock.getArgument(1)));
     var consumerEmail = "randomEmail" + randomUUID();
     assertDoesNotThrow(() -> subject.generateApiKeys(List.of(someCreateApiKey(consumerEmail))));

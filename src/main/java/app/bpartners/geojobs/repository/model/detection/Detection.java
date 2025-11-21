@@ -64,13 +64,15 @@ public class Detection implements Serializable {
   private String zoneName;
 
   private String emailReceiver;
-  private boolean isSynchronous;
+
+  @Getter(AccessLevel.NONE)
+  private Boolean isSynchronous;
 
   @Getter(AccessLevel.NONE)
   private Boolean isOutputZipped;
 
   @Getter(AccessLevel.NONE)
-  private boolean needsImageOutput = false;
+  private Boolean needsImageOutput;
 
   @JoinColumn(referencedColumnName = "id", name = "community_owner_id")
   private String communityOwnerId;
@@ -90,6 +92,10 @@ public class Detection implements Serializable {
   @JdbcTypeCode(JSON)
   @Getter(AccessLevel.NONE)
   private List<Feature> providedGeoJsonZone;
+
+  @Getter(AccessLevel.NONE)
+  @Column(name = "to_notify")
+  private Boolean toNotify;
 
   @JdbcTypeCode(JSON)
   @Getter(AccessLevel.NONE)
@@ -162,7 +168,15 @@ public class Detection implements Serializable {
   }
 
   public boolean needsImageOutput() {
-    return needsImageOutput;
+    return needsImageOutput != null && needsImageOutput;
+  }
+
+  public boolean isSynchronous() {
+    return isSynchronous != null && isSynchronous;
+  }
+
+  public boolean isToNotify() {
+    return toNotify != null && toNotify;
   }
 
   public List<app.bpartners.geojobs.endpoint.rest.model.Feature> getSplitPolygonGeoJsonZone() {

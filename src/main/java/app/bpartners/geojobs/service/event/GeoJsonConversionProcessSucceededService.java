@@ -39,7 +39,7 @@ public class GeoJsonConversionProcessSucceededService
   private String getApiKey(Detection detection) {
     return communityAuthorizationRepository
         .findById(detection.getCommunityOwnerId())
-        .map(CommunityAuthorization::getApiKey)
+        .map(CommunityAuthorization::getDashboardApiKey)
         .orElseThrow();
   }
 }

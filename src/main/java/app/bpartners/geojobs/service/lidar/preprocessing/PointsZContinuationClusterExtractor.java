@@ -1,6 +1,6 @@
 package app.bpartners.geojobs.service.lidar.preprocessing;
 
-import app.bpartners.geojobs.service.lidar.model.LasPointGeometry;
+import app.bpartners.geojobs.service.lidar.model.geometry.LasPointGeometry;
 import java.util.*;
 
 public record PointsZContinuationClusterExtractor(double zDiscontinuityThreshold) {

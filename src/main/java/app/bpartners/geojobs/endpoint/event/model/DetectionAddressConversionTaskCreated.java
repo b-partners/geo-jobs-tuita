@@ -9,12 +9,7 @@ import lombok.*;
 @ToString
 public class DetectionAddressConversionTaskCreated
     extends TaskCreated<DetectionAddressConversionTask> {
-
-  public DetectionAddressConversionTaskCreated(
-      DetectionAddressConversionTask task, String e2ApiKey) {
+  public DetectionAddressConversionTaskCreated(DetectionAddressConversionTask task) {
     super(task);
-    this.e2ApiKey = e2ApiKey;
   }
-
-  private String e2ApiKey;
 }

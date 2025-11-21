@@ -62,11 +62,37 @@ public class UserAccountsApi {
         .getBody();
   }
 
-  public UserApiKey updateApiKey(String userEmail, String newUserApiKey, String adminApiKey) {
+  public UserApiKey getUserApiKey(String userId, String adminApiKey) {
+    var endpoint = String.format("%s/users/%s/keys", apiConfiguration.getDashboardApiUrl(), userId);
+
+    var headers = new HttpHeaders();
+    headers.add(API_KEY_HEADER, adminApiKey);
+    var requestEntity = new HttpEntity<>(headers);
+
+    return restTemplate
+        .exchange(endpoint, GET, requestEntity, new ParameterizedTypeReference<UserApiKey>() {})
+        .getBody();
+  }
+
+  public UserApiKey getOrGenerateApiKey(
+      String userEmail, String newUserApiKey, String adminApiKey) {
     var usersByEmail = getUsersByCriteria(userEmail, 1, 500, adminApiKey);
     if (usersByEmail.isEmpty()) {
-      throw new NotFoundException("User.email=" + userEmail + " not found in BirdIA dashboard");
+      throw new NotFoundException(
+          "Any user with email like " + userEmail + " found in BirdIA dashboard");
+    } else if (usersByEmail.size() > 1) {
+      throw new UnsupportedOperationException(
+          "Provided email address retrieved "
+              + usersByEmail.size()
+              + " users. "
+              + "Please choose which of following users do you want to generate new api key : "
+              + usersByEmail.stream().map(User::email).toList());
     }
+    var actualApiKey = getUserApiKey(usersByEmail.getFirst().id(), adminApiKey);
+    if (actualApiKey.key() != null) {
+      return actualApiKey;
+    }
+
     var endpoint =
         String.format(
             "%s/users/%s/keys",

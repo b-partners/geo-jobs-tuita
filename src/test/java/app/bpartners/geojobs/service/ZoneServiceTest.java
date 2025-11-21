@@ -54,6 +54,7 @@ import app.bpartners.geojobs.repository.model.geojson.GeoJsonConversionJob;
 import app.bpartners.geojobs.repository.model.tiling.ZoneTilingJob;
 import app.bpartners.geojobs.service.dashboard.AreaPictureApi;
 import app.bpartners.geojobs.service.dashboard.component.AreaPictureMapLayer;
+import app.bpartners.geojobs.service.dashboard.component.Zoom;
 import app.bpartners.geojobs.service.detection.*;
 import app.bpartners.geojobs.service.detection.DetectionCreationMapper;
 import app.bpartners.geojobs.service.geojson.GeoJsonConversionJobService;
@@ -180,7 +181,6 @@ class ZoneServiceTest {
   GeoServerConfiguration geoServerConfiguration = new GeoServerConfiguration(geoServerDummyUrl);
   DetectionSupportedAreaValidator detectionAreaValidatorMock = mock();
   DetectionStepMapper detectionStepMapper = new DetectionStepMapper();
-  DetectionStepRepository detectionStepRepositoryMock = mock();
   DetectionFromStepMapper detectionFromStepMapperMock = mock();
   RoofAnalysisMailer roofAnalysisMailerMock = mock(RoofAnalysisMailer.class);
   FileWriter fileWriterMock = mock();
@@ -270,6 +270,13 @@ class ZoneServiceTest {
         .thenReturn(List.of(longitude, latitude));
     when(tileMultiPolygonFrameMock.apply(longitude, latitude))
         .thenReturn(Optional.of(jtsMultiPolygonFrameMock));
+    when(communityAuthRepositoryMock.findById(any(String.class)))
+        .thenReturn(
+            Optional.<CommunityAuthorization>of(
+                new CommunityAuthorization().builder().dashboardApiKey("apiKey").build()));
+    when(areaPictureApiMock.getAreaPictureMapLayers(anyDouble(), anyDouble(), anyString()))
+        .thenReturn(
+            List.of(new AreaPictureMapLayer("id", LATEST_DEFAULT_LAYER, new Zoom("level", 24))));
 
     var actual = subject.processDetection(detectionIdentifier, createDetection, communityOwnerId);
 
@@ -615,11 +622,59 @@ class ZoneServiceTest {
   }
 
   @Test
-  void admin_role_read_finished_geo_json_conversion_statistics() {
+  void admin_role_read_finished_geo_json_conversion_but_not_computed_geo_json_file_key() {
     var detectionId = randomUUID().toString();
     var tilingId = randomUUID().toString();
     var detectionJobId = randomUUID().toString();
     var detection = detectionCreator.create(detectionId, tilingId, detectionJobId);
+    detection.setGeojsonS3FileKey(null); // Just to explicit it here
+    detection.setMultiPolygonGeoJsonZone(List.of(new Feature()));
+    detection.setGeoServerProperties(new GeoServerProperties());
+    setUpAuthorityRoleProcessingMock(detectionId, detection, ROLE_ADMIN);
+    reset(geoJsonConversionJobRepositoryMock);
+    when(geoJsonConversionJobRepositoryMock.findByZoneDetectionJobId(detectionJobId))
+        .thenReturn(
+            List.of(
+                someGeoJsonConversionJob(
+                    FINISHED,
+                    app.bpartners.geojobs.job.model.Status.HealthStatus.SUCCEEDED,
+                    now())));
+    when(zoneDetectionJobServiceMock.countInDoubtDetectedTileToDeliveryById(detectionJobId))
+        .thenReturn(0L);
+    when(zoneDetectionJobServiceMock.computeTaskStatistics(detectionJobId))
+        .thenReturn(
+            TaskStatistic.builder()
+                .actualJobStatus(
+                    JobStatus.builder()
+                        .progression(FINISHED)
+                        .health(app.bpartners.geojobs.job.model.Status.HealthStatus.SUCCEEDED)
+                        .build())
+                .taskStatusStatistics(new ArrayList<>())
+                .build());
+    when(zoneDetectionJobServiceMock.findById(detectionJobId))
+        .thenReturn(
+            zoneDetectionJobCreator.create(
+                detectionJobId,
+                null,
+                null,
+                FINISHED,
+                app.bpartners.geojobs.job.model.Status.HealthStatus.SUCCEEDED,
+                new ZoneTilingJob()));
+
+    var actual = subject.getProcessedDetection(detectionId);
+
+    assertEquals(POST_PROCESSING, actual.getStep().getName());
+    assertEquals(Status.ProgressionEnum.PROCESSING, actual.getStep().getStatus().getProgression());
+    assertEquals(UNKNOWN, actual.getStep().getStatus().getHealth());
+  }
+
+  @Test
+  void admin_role_read_finished_geo_json_conversion_with_computed_geo_json_file_key() {
+    var detectionId = randomUUID().toString();
+    var tilingId = randomUUID().toString();
+    var detectionJobId = randomUUID().toString();
+    var detection = detectionCreator.create(detectionId, tilingId, detectionJobId);
+    detection.setGeojsonS3FileKey(randomUUID().toString()); // Just to explicit it here
     detection.setMultiPolygonGeoJsonZone(List.of(new Feature()));
     detection.setGeoServerProperties(new GeoServerProperties());
     setUpAuthorityRoleProcessingMock(detectionId, detection, ROLE_ADMIN);
@@ -932,7 +987,7 @@ class ZoneServiceTest {
     var detectionSaved = (DetectionSaved) listCaptor.getValue().getFirst();
     var expectedSavedDetection = detection.toBuilder().shapeFileKey(shapeFileBucketKey).build();
     var expectedDetectionSavedEvent =
-        DetectionSaved.builder().detection(expectedSavedDetection).build();
+        DetectionSaved.builder().detectionIdentifier(expectedSavedDetection.getId()).build();
     var expectedRestDetection =
         new Detection()
             .id(detectionE2eId)
@@ -986,7 +1041,7 @@ class ZoneServiceTest {
         (DetectionExcelFileSaved) listCaptor.getAllValues().getFirst().getFirst();
     var expectedSavedDetection = detection.toBuilder().excelFileKey(excelFileBucketKey).build();
     var expectedDetectionSavedEvent =
-        DetectionSaved.builder().detection(expectedSavedDetection).build();
+        DetectionSaved.builder().detectionIdentifier(expectedSavedDetection.getId()).build();
     var expectedDetectionExcelFileSaved =
         DetectionExcelFileSaved.builder().detection(expectedSavedDetection).build();
     var expectedRestDetection =
@@ -1078,7 +1133,7 @@ class ZoneServiceTest {
                     .updatedAt(actual.getStep().getUpdatedAt()))
             .geoJsonOutput(GEO_JSON);
     assertEquals(
-        DetectionSaved.builder().detection(expectedDetectionSaved).build(), detectionProvided);
+        DetectionSaved.builder().detectionIdentifier(detectionId).build(), detectionProvided);
     assertEquals(expectedDetectionSaved, savedDetection);
     assertEquals(expectedRestDetection, actual);
   }

@@ -8,14 +8,15 @@ import static java.util.stream.Collectors.toSet;
 import app.bpartners.geojobs.service.GeometrySquareMeterArea;
 import app.bpartners.geojobs.service.lidar.api.LidarApi;
 import app.bpartners.geojobs.service.lidar.model.*;
-import app.bpartners.geojobs.service.lidar.model.roof.LidarRoofData;
-import app.bpartners.geojobs.service.lidar.model.roof.RoofProperties;
+import app.bpartners.geojobs.service.lidar.model.geometry.GeometryWithProperties;
+import app.bpartners.geojobs.service.lidar.model.geometry.LasPointGeometry;
+import app.bpartners.geojobs.service.lidar.model.geometry.roof.LidarRoofData;
+import app.bpartners.geojobs.service.lidar.model.geometry.roof.RoofProperties;
 import com.github.mreutegg.laszip4j.LASReader;
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.util.*;
-import java.util.function.Function;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.locationtech.jts.geom.Geometry;
@@ -24,17 +25,24 @@ import org.springframework.stereotype.Component;
 @Slf4j
 @Component
 @RequiredArgsConstructor
-public class LidarRoofsAnalysisProcessor
-    implements Function<Set<Geometry>, LidarRoofsAnalysisProcessor.RoofsAnalysisResult> {
+public class LidarRoofsAnalysisProcessor {
   private final LidarApi lidarApi;
   private final GeometrySquareMeterArea projector;
 
   private static final int ROOF_GROUND_BUFFER_METERS = 3;
   private static final short ROOF_LIDAR_CLASS_VALUE = 6;
   private static final short GROUND_LIDAR_CLASS_VALUE = 2;
+  private static final short NOT_CLASSIFIED_LIDAR_CLASS_VALUE = 1;
 
-  @Override
-  public RoofsAnalysisResult apply(Set<Geometry> roofsEPSG4326) {
+  public RoofsAnalysisResult from(Set<Geometry> roofsEPSG4326) {
+    var polygonWithProperties =
+        roofsEPSG4326.stream()
+            .map(roof -> new GeometryWithProperties(roof, new HashMap<>()))
+            .collect(toSet());
+    return apply(polygonWithProperties);
+  }
+
+  public RoofsAnalysisResult apply(Set<GeometryWithProperties> roofsEPSG4326) {
     Set<LidarRoofData> allRoofsData = emptyFromEPSG4326(roofsEPSG4326);
 
     try {
@@ -51,7 +59,7 @@ public class LidarRoofsAnalysisProcessor
 
       return new RoofsAnalysisResult(mergeSameRoofBoundary(roofsDataPerFiles));
     } catch (Exception e) {
-      log.error(e.getMessage());
+      log.error("Failed to retrieve lidar data", e);
       return new RoofsAnalysisResult(
           mergeSameRoofBoundary(List.of(emptyFrom(allRoofsData, EXTRACTION_ERROR))));
     }
@@ -91,6 +99,7 @@ public class LidarRoofsAnalysisProcessor
       }
       file = optionalFile.get();
     } catch (Exception e) {
+      log.error("Failed to download fileUrl={}", fileUrl, e);
       return emptyFrom(roofsData, EXTRACTION_ERROR);
     }
 
@@ -107,7 +116,7 @@ public class LidarRoofsAnalysisProcessor
           var groundPoint = new LasPointGeometry(point, lasHeader);
           handleGroundPoint(groundPoint, roofsDataFromFile);
           break;
-        case ROOF_LIDAR_CLASS_VALUE:
+        case ROOF_LIDAR_CLASS_VALUE, NOT_CLASSIFIED_LIDAR_CLASS_VALUE:
           var roofPoint = new LasPointGeometry(point, lasHeader);
           handleRoofPoint(roofPoint, roofsDataFromFile);
           break;
@@ -156,14 +165,25 @@ public class LidarRoofsAnalysisProcessor
     }
   }
 
-  private Set<LidarRoofData> emptyFromEPSG4326(Set<Geometry> roofsEPSG4326) {
+  private Set<LidarRoofData> emptyFromEPSG4326(Set<GeometryWithProperties> roofsEPSG4326) {
     Set<LidarRoofData> lidarData = new HashSet<>();
-    for (var roofEPSG4326 : roofsEPSG4326) {
-      var roofLambert93 = projector.project(roofEPSG4326, WGS84, LAMBERT_93);
+    for (var roofEPSG4326WithProperties : roofsEPSG4326) {
+      var roofLambert93 =
+          projector.project(roofEPSG4326WithProperties.geometry(), WGS84, LAMBERT_93);
       var groundLambert93 = roofLambert93.buffer(ROOF_GROUND_BUFFER_METERS);
+      Map<String, Object> properties =
+          roofEPSG4326WithProperties.properties() == null
+              ? new HashMap<>()
+              : roofEPSG4326WithProperties.properties();
 
       lidarData.add(
-          LidarRoofData.empty(roofEPSG4326, roofLambert93, null, groundLambert93, UNAVAILABLE));
+          LidarRoofData.empty(
+              properties,
+              roofEPSG4326WithProperties.geometry(),
+              roofLambert93,
+              null,
+              groundLambert93,
+              UNAVAILABLE));
     }
     return lidarData;
   }
