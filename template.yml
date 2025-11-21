@@ -53,6 +53,8 @@ Globals:
         GEOSERVER_API_URL: !Sub '{{resolve:ssm:/geo-jobs/${Env}/geoserver/api/url}}'
         IGN_LIDAR_API_URL: !Sub '{{resolve:ssm:/geo-jobs/${Env}/ign/lidar/api/url}}'
         ROOF_COVERING_DETECTION_API_URL: !Sub '{{resolve:ssm:/geo-jobs/${Env}/covering/detection/api/url}}'
+        GOOGLE_CAPTCHA_SECRET: !Sub '{{resolve:ssm:/geo-jobs/${Env}/google/captcha/secret}}'
+        GOOGLE_CAPTCHA_URL: !Sub '{{resolve:ssm:/geo-jobs/${Env}/google/captcha/url}}'
 
 
 Parameters:
