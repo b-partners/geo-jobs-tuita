@@ -1,6 +1,6 @@
 {
   "emailReceiver": "tech@birdia.fr",
-  "zoneName": "[archismart] monitoring detections sync",
+  "zoneName": "[tuita] monitoring detections sync",
   "geoServerProperties": null,
   "needsImageOutput": true,
   "geoJsonDelimitationType": "ROOF",

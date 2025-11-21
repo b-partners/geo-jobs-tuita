@@ -1,6 +1,6 @@
 {
   "emailReceiver": "tech@birdia.fr",
-  "zoneName": "[archismart] monitoring detections async",
+  "zoneName": "[tuita] monitoring detections async",
   "geoServerProperties": null,
   "needsImageOutput": true,
   "geoJsonDelimitationType": "ZONE",
