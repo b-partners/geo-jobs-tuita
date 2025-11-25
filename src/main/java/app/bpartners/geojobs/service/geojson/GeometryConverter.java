@@ -9,7 +9,7 @@ import app.bpartners.geojobs.endpoint.rest.model.FeatureGeometry;
 import app.bpartners.geojobs.model.exception.NotImplementedException;
 import app.bpartners.geojobs.model.geometry.RoofDetails;
 import app.bpartners.geojobs.repository.model.Feature;
-import app.bpartners.geojobs.service.GeometryTools;
+import app.bpartners.geojobs.service.PolygonInsideCircleDistanceComputer;
 import app.bpartners.geojobs.service.gouv.fr.rnb.BuildingApi;
 import app.bpartners.geojobs.service.gouv.fr.rnb.component.Building;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -30,9 +30,9 @@ import org.springframework.stereotype.Component;
 @Slf4j
 public class GeometryConverter {
   private static final int DEFAULT_POLYGON_SIZE_IN_METERS = 100;
-  private static final double APPROXIMATE_METERS_PER_DEGREE_OF_LATITUDE = 111320.0;
   private final GeometryFactory geometryFactory = new GeometryFactory();
-  private final GeometryTools geometryTools = new GeometryTools();
+  private final PolygonInsideCircleDistanceComputer circleDistanceComputer =
+      new PolygonInsideCircleDistanceComputer();
   private final BuildingApi buildingApi;
 
   public GeometryConverter(BuildingApi buildingApi) {
@@ -97,23 +97,23 @@ public class GeometryConverter {
 
   public List<RoofDetails> retrieveRoofPolygonsFrom(
       List<List<BigDecimal>> lonLatPolygonCoordinates) {
+    var jtsMultiPolygon = apply(List.of(List.of((lonLatPolygonCoordinates))));
+    var centroid = jtsMultiPolygon.getCentroid();
+    var longitude = centroid.getCoordinate().x;
+    var latitude = centroid.getCoordinate().y;
     var maxRadius = 1000;
-    var metersPolygonCoordinates =
-        lonLatPolygonCoordinates.stream()
-            .map(coordinate -> lonLatToMeters(coordinate.getFirst(), coordinate.getLast()))
-            .toList();
-    var minimumEnclosingRadius = geometryTools.getMinimumEnclosingRadius(metersPolygonCoordinates);
+    var minimumEnclosingRadius =
+        circleDistanceComputer.apply(
+            List.of(BigDecimal.valueOf(longitude), BigDecimal.valueOf(latitude)),
+            lonLatPolygonCoordinates);
     if (minimumEnclosingRadius > maxRadius) {
       throw new UnsupportedOperationException(
           "Provided multiPolygon zone is larger than supported retrieving roof polygons radius"
               + " 1000, actual is "
               + minimumEnclosingRadius);
     }
-    var jtsMultiPolygon = apply(List.of(List.of((lonLatPolygonCoordinates))));
-    var centroid = jtsMultiPolygon.getCentroid();
-    var longitude = centroid.getCoordinate().x;
-    var latitude = centroid.getCoordinate().y;
-    return getBuildingsFromCentroid(longitude, latitude, minimumEnclosingRadius, jtsMultiPolygon);
+    return getBuildingsFromCentroid(
+        longitude, latitude, minimumEnclosingRadius.intValue(), jtsMultiPolygon);
   }
 
   private List<RoofDetails> getBuildingsFromCentroid(
@@ -356,6 +356,25 @@ public class GeometryConverter {
     return coordinates;
   }
 
+  public List<List<List<List<BigDecimal>>>> geometryToMultiPolygonCoordinates(Geometry geometry) {
+    if (geometry instanceof MultiPolygon) {
+      return multiPolygonToNestedList((MultiPolygon) geometry);
+    } else if (geometry instanceof Polygon polygon) {
+      List<List<List<List<BigDecimal>>>> coordinates = new ArrayList<>();
+      List<List<List<BigDecimal>>> polygonList = new ArrayList<>();
+      // Partie extérieure (shell)
+      polygonList.add(linearRingToList(polygon.getExteriorRing()));
+
+      // Trous éventuels (holes)
+      for (int j = 0; j < polygon.getNumInteriorRing(); j++) {
+        polygonList.add(linearRingToList(polygon.getInteriorRingN(j)));
+      }
+      coordinates.add(polygonList);
+      return coordinates;
+    }
+    throw new UnsupportedOperationException("Unsupported geometry type: " + geometry.getClass());
+  }
+
   private List<List<BigDecimal>> linearRingToList(LineString ring) {
     List<List<BigDecimal>> coordsList = new ArrayList<>();
 
@@ -476,14 +495,6 @@ public class GeometryConverter {
               "Unsupported geometry type for roof: " + geometryInstance);
     }
     return roofGeometry;
-  }
-
-  private List<BigDecimal> lonLatToMeters(BigDecimal lon, BigDecimal lat) {
-    double originShift = 2 * Math.PI * 6378137 / 2.0;
-    double mx = lon.doubleValue() * originShift / 180.0;
-    double my = Math.log(Math.tan((90 + lat.doubleValue()) * Math.PI / 360.0)) / (Math.PI / 180.0);
-    my = my * originShift / 180.0;
-    return List.of(BigDecimal.valueOf(mx), BigDecimal.valueOf(my));
   }
 
   public Polygon retrievePolygonGeometry(

@@ -49,7 +49,12 @@ public class DetectionFeaturesResultImageRetriever implements Function<Detection
         return providedGeoJsonZone;
       }
       var layer = detection.getGeoServerProperties().getGeoServerParameter().getLayers();
-      if (layer == null) {
+      if (layer == null
+          && providedGeoJsonZone.stream()
+              .noneMatch(
+                  feature ->
+                      feature.getProperties() != null
+                          && feature.getProperties().containsKey("priorityLayer"))) {
         return providedGeoJsonZone;
       }
       return retrieveFeatureImageFromBucket(providedGeoJsonZone, layer, detection);

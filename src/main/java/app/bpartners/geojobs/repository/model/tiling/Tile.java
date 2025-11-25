@@ -21,6 +21,7 @@ public class Tile implements Serializable {
   private String bucketPath;
   private File image;
   private String detectionE2Id;
+  private boolean isBlured = false;
 
   @Override
   public String toString() {
