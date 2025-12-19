@@ -13,6 +13,7 @@ import app.bpartners.geojobs.repository.DetectionRepository;
 import app.bpartners.geojobs.repository.model.DetectionAddressConversionTask;
 import app.bpartners.geojobs.repository.model.detection.Detection;
 import app.bpartners.geojobs.service.DetectionAddressConversionTaskToCsvConverter;
+import app.bpartners.geojobs.service.ExcelAddressWriter;
 import app.bpartners.geojobs.template.HTMLTemplateParser;
 import jakarta.mail.internet.InternetAddress;
 import java.io.File;
@@ -36,6 +37,7 @@ public class DetectionAddressConversionJobFailedService
   private final DetectionRepository detectionRepository;
   private final String adminEmail;
   private final DetectionAddressConversionTaskToCsvConverter csvConverter;
+  private final ExcelAddressWriter excelAddressWriter;
 
   public DetectionAddressConversionJobFailedService(
       DetectionAddressConversionTaskRepository detectionAddressConversionTaskRepository,
@@ -44,7 +46,8 @@ public class DetectionAddressConversionJobFailedService
       BucketComponent bucketComponent,
       DetectionRepository detectionRepository,
       @Value("${admin.email}") String adminEmail,
-      DetectionAddressConversionTaskToCsvConverter csvConverter) {
+      DetectionAddressConversionTaskToCsvConverter csvConverter,
+      ExcelAddressWriter excelAddressWriter) {
     this.detectionAddressConversionTaskRepository = detectionAddressConversionTaskRepository;
     this.mailer = mailer;
     this.htmlTemplateParser = htmlTemplateParser;
@@ -52,6 +55,7 @@ public class DetectionAddressConversionJobFailedService
     this.detectionRepository = detectionRepository;
     this.adminEmail = adminEmail;
     this.csvConverter = csvConverter;
+    this.excelAddressWriter = excelAddressWriter;
   }
 
   @SneakyThrows
@@ -88,7 +92,15 @@ public class DetectionAddressConversionJobFailedService
   }
 
   private File getExcelUploadedFile(Detection detection) {
-    var excelUploadedFile = bucketComponent.download(detection.getExcelFileKey());
+    var excelFileKey = detection.getExcelFileKey();
+    File excelUploadedFile;
+    if (excelFileKey == null
+        && detection.getConvertedAddresses() != null
+        && !detection.getConvertedAddresses().isEmpty()) {
+      excelUploadedFile = excelAddressWriter.apply(detection.getConvertedAddresses());
+    } else {
+      excelUploadedFile = bucketComponent.download(excelFileKey);
+    }
     var absolutePath = excelUploadedFile.getAbsolutePath();
     var dirIndex = absolutePath.lastIndexOf('/');
     var dirName = absolutePath.substring(0, dirIndex) + "/";

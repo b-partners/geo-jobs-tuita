@@ -44,63 +44,81 @@ public class TileImageBlur implements BiFunction<Detection, List<Tile>, List<Til
       roofInsideProvidedZone =
           handleGeometryCollectionType(providedZone.intersection(unifiedRoofMultiPolygon));
     }
-    return tiles.stream()
-        .map(
-            tile -> {
-              var tileCoordinates = tile.getCoordinates();
-              var multiPolygonFromTile =
-                  geometryConverter.getMultiPolygonFromTile(
-                      tileCoordinates.getX(), tileCoordinates.getY(), tileCoordinates.getZ());
-              var roofInsideTileAndProvidedZone =
-                  handleGeometryCollectionType(
-                      multiPolygonFromTile.intersection(roofInsideProvidedZone));
+    var bluredTiles =
+        tiles.stream()
+            .map(
+                tile -> {
+                  boolean isBlured = false;
+                  var tileCoordinates = tile.getCoordinates();
+                  var multiPolygonFromTile =
+                      geometryConverter.getMultiPolygonFromTile(
+                          tileCoordinates.getX(), tileCoordinates.getY(), tileCoordinates.getZ());
+                  var roofInsideTileAndProvidedZone =
+                      handleGeometryCollectionType(
+                          multiPolygonFromTile.intersection(roofInsideProvidedZone));
 
-              Geometry intersectionBetweenTileMultiPolygonAndBackground;
-              if (ROOF.equals(detection.getGeoJsonDelimitationType())) {
-                intersectionBetweenTileMultiPolygonAndBackground =
-                    multiPolygonFromTile.difference(roofInsideTileAndProvidedZone);
-              } else {
-                intersectionBetweenTileMultiPolygonAndBackground =
-                    handleGeometryCollectionType(
-                        multiPolygonFromTile.intersection(latLonBackgroundInsideProvidedZone));
-              }
+                  Geometry intersectionBetweenTileMultiPolygonAndBackground;
+                  if (ROOF.equals(detection.getGeoJsonDelimitationType())) {
+                    intersectionBetweenTileMultiPolygonAndBackground =
+                        multiPolygonFromTile.difference(roofInsideTileAndProvidedZone);
+                  } else {
+                    intersectionBetweenTileMultiPolygonAndBackground =
+                        handleGeometryCollectionType(
+                            multiPolygonFromTile.intersection(latLonBackgroundInsideProvidedZone));
+                  }
 
-              var tileWithoutRoofInsideTileAndZone =
-                  multiPolygonFromTile.difference(roofInsideTileAndProvidedZone);
-              List<List<List<IntXY>>> multiPolygonPixelCoordinates;
-              if (intersectionBetweenTileMultiPolygonAndBackground == null
-                  || intersectionBetweenTileMultiPolygonAndBackground.isEmpty()) {
-                multiPolygonPixelCoordinates = getBlurAllAreaCoordinates();
-              } else {
-                var backgroundMultiPolygonPixels =
-                    geometryPixelProjector.toMultiPolygonPixels(
-                        tileWithoutRoofInsideTileAndZone,
-                        tileCoordinates.getX(),
-                        tileCoordinates.getY(),
-                        tileCoordinates.getZ(),
-                        DEFAULT_TILE_SIZE);
-                multiPolygonPixelCoordinates =
-                    backgroundMultiPolygonPixels.stream()
-                        .map(
-                            polygon ->
-                                polygon.stream()
-                                    .map(
-                                        ring ->
-                                            ring.stream()
-                                                .map(
-                                                    coordinates ->
-                                                        new IntXY(
-                                                            coordinates.getFirst().intValue(),
-                                                            coordinates.getLast().intValue()))
-                                                .toList())
-                                    .toList())
-                        .toList();
-              }
-              var imageWithBlur =
-                  filePolygonDrawer.apply(multiPolygonPixelCoordinates, WHITE, tile.getImage());
-              return tile.toBuilder().image(imageWithBlur).build();
-            })
-        .toList();
+                  var tileWithoutRoofInsideTileAndZone =
+                      multiPolygonFromTile.difference(roofInsideTileAndProvidedZone);
+                  List<List<List<IntXY>>> multiPolygonPixelCoordinates;
+                  if (intersectionBetweenTileMultiPolygonAndBackground == null
+                      || intersectionBetweenTileMultiPolygonAndBackground.isEmpty()) {
+                    multiPolygonPixelCoordinates = getBlurAllAreaCoordinates();
+                    isBlured = true;
+                  } else {
+                    var backgroundMultiPolygonPixels =
+                        geometryPixelProjector.toMultiPolygonPixels(
+                            tileWithoutRoofInsideTileAndZone,
+                            tileCoordinates.getX(),
+                            tileCoordinates.getY(),
+                            tileCoordinates.getZ(),
+                            DEFAULT_TILE_SIZE);
+                    multiPolygonPixelCoordinates =
+                        backgroundMultiPolygonPixels.stream()
+                            .map(
+                                polygon ->
+                                    polygon.stream()
+                                        .map(
+                                            ring ->
+                                                ring.stream()
+                                                    .map(
+                                                        coordinates ->
+                                                            new IntXY(
+                                                                coordinates.getFirst().intValue(),
+                                                                coordinates.getLast().intValue()))
+                                                    .toList())
+                                        .toList())
+                            .toList();
+                  }
+                  var imageWithBlur =
+                      filePolygonDrawer.apply(multiPolygonPixelCoordinates, WHITE, tile.getImage());
+                  return tile.toBuilder().image(imageWithBlur).isBlured(isBlured).build();
+                })
+            .toList();
+    if (bluredTiles.stream().allMatch(Tile::isBlured)) {
+      log.info(
+          "Returning original images as error occurred during blurring images for tiles {}",
+          tiles.stream()
+                  .map(
+                      tile ->
+                          "x:"
+                              + tile.getCoordinates().getX()
+                              + "/ y: "
+                              + tile.getCoordinates().getY())
+                  .toList()
+              + " ; ");
+      return tiles;
+    }
+    return bluredTiles;
   }
 
   private org.locationtech.jts.geom.MultiPolygon getUnifiedRoofMultiPolygon(Detection detection) {

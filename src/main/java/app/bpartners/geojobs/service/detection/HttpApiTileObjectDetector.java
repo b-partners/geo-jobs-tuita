@@ -63,13 +63,17 @@ public class HttpApiTileObjectDetector implements TileObjectDetector {
     HttpHeaders headers = new HttpHeaders();
     headers.setContentType(APPLICATION_JSON);
 
-    log.info("Process tile retrieval from s3, bucketName={}, tilePath={}", bucketComponent.getBucketConf().getBucketName(), tile.getBucketPath());
+    log.info(
+        "Process tile retrieval from s3, bucketName={}, tilePath={}",
+        bucketComponent.getBucketConf().getBucketName(),
+        tile.getBucketPath());
 
     File file =
         bucketComponent.download(
             bucketComponent.getBucketConf().getBucketName(), tile.getBucketPath());
 
-    log.info("TileDetectionTask = {} s3 file path is successfully retrieved",tileDetectionTask.getId());
+    log.info(
+        "TileDetectionTask = {} s3 file path is successfully retrieved", tileDetectionTask.getId());
     String base64ImgData = Base64.getEncoder().encodeToString(readFileToByteArray(file));
     String base64MaskData =
         mask == null ? null : Base64.getEncoder().encodeToString(readFileToByteArray(mask));

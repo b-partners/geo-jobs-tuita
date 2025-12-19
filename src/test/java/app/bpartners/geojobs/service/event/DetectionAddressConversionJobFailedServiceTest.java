@@ -14,6 +14,7 @@ import app.bpartners.geojobs.repository.model.DetectionAddressConversionJob;
 import app.bpartners.geojobs.repository.model.DetectionAddressConversionTask;
 import app.bpartners.geojobs.repository.model.detection.Detection;
 import app.bpartners.geojobs.service.DetectionAddressConversionTaskToCsvConverter;
+import app.bpartners.geojobs.service.ExcelAddressWriter;
 import app.bpartners.geojobs.template.HTMLTemplateParser;
 import jakarta.mail.internet.InternetAddress;
 import java.io.File;
@@ -32,6 +33,7 @@ class DetectionAddressConversionJobFailedServiceTest {
   BucketComponent bucketComponentMock = mock();
   DetectionRepository detectionRepositoryMock = mock();
   DetectionAddressConversionTaskToCsvConverter taskToCsvConverterMock = mock();
+  ExcelAddressWriter excelAddressWriterMock = mock();
   DetectionAddressConversionJobFailedService subject =
       new DetectionAddressConversionJobFailedService(
           taskRepositoryMock,
@@ -40,7 +42,8 @@ class DetectionAddressConversionJobFailedServiceTest {
           bucketComponentMock,
           detectionRepositoryMock,
           ADMIN_EMAIL,
-          taskToCsvConverterMock);
+          taskToCsvConverterMock,
+          excelAddressWriterMock);
 
   @SneakyThrows
   @Test
