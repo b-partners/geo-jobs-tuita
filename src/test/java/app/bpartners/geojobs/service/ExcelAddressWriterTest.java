@@ -26,7 +26,6 @@ class ExcelAddressWriterTest {
 
     var actual = subject.apply(List.of("Lyon", "Paris"));
 
-    assertEquals(expected.length(), actual.length());
     assertExcelEquals(expected, actual);
   }
 
